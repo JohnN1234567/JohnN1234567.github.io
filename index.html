@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"
+        integrity="sha512-uaz5GpnQoE6t5echKlX8P52czvsIGgLPcvlzfvRubLZ1Hp8JemUDnbUiAahbVtPb+jUVrNETuXvAhDDF/N3M4w=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script defer src="https://unpkg.com/p5.collide2d"></script>
+</head>
+
+<body>
+    <h1></h1>
+    <script>
+        
+        let windowWidth = window.innerWidth
+        let windowHeight = window.innerHeight
+
+        let rectWidth = 25
+        let constructionX = 0 + rectWidth / 2
+        let constructionY = 0 + rectWidth / 2
+
+        let constructionType = 0
+        let iteration = 0
+        
+        
+
+
+        let newConstructorX = 0 + rectWidth / 2
+        let newConstructorY = 0 + rectWidth / 2
+
+        let forwardType = "downOrient"
+
+        let squareLog = []
+        let borderLog = []
+        let wallLog = []
+        let cameraSpeed = 5
+
+        //formula to determine # of squares for a limit 1 square = 25 px squareLimit * 25 = realLimit
+        let upperLimit = 0
+        let lowerLimit = 50 * rectWidth
+        let leftLimit = 0
+        let rightLimit = 100 * rectWidth
+
+        let backupConstructorX = 0 + rectWidth/2
+        let backupConstructorY = 0 + rectWidth/2
+
+        let repeatedSquares = 0
+        let dangerZone = 0
+
+        let wallTile
+        let wallTileDown
+        let wallTileRight
+        let wallTileLeft
+        //format for rooms: roomLength, room Width, we will multiply the dimensions by rectWidth to ensure uniformity in increments, additionally make sure all measurements are odd #s so that it can fit with hallway tiles
+        let roomList = [[7 * rectWidth, 11 * rectWidth], [5*rectWidth, 15*rectWidth], [11*rectWidth, 15*rectWidth]]
+        let trueRoomList = []
+
+        //this function will help to see if there are any squares in the corner, (we don't want squares to clump up)
+        function squareChecker(constructX, constructY, table) {
+            console.log([constructX, constructY])
+            let touched = 0
+            if (constructX < leftLimit || constructX > rightLimit) {
+                touched += 1000
+            }
+            if (constructY < upperLimit || constructY > lowerLimit) {
+                touched += 1000
+            }
+            for (i = 0; i < table.length; i++) {
+                //check to see if a tile is already there
+                if (table[i][0] == constructX && table[i][1] == constructY) {
+                    touched += 1000
+                }
+
+                constructCheckerX = constructX - rectWidth
+                constructCheckerY = constructY - rectWidth
+
+                if (constructCheckerX == table[i][0] && constructCheckerY == table[i][1]) {
+                    touched += 1
+                }
+
+                constructCheckerX = constructX + rectWidth
+                constructCheckerY = constructY - rectWidth
+
+                if (constructCheckerX == table[i][0] && constructCheckerY == table[i][1]) {
+                    touched += 1
+                }
+
+                constructCheckerX = constructX - rectWidth
+                constructCheckerY = constructY + rectWidth
+
+                if (constructCheckerX == table[i][0] && constructCheckerY == table[i][1]) {
+                    touched += 1
+                }
+
+                constructCheckerX = constructX - rectWidth
+                constructCheckerY = constructY - rectWidth
+
+                if (constructCheckerX == table[i][0] && constructCheckerY == table[i][1]) {
+                    touched += 1
+                }
+            }
+            console.log(touched)
+            console.log([constructX, constructY])
+            return touched
+        }
+
+        function checkRepeated(x, y) {
+            for (i=0;i < squareLog.length; i++) {
+                if (squareLog[i][0] == x && squareLog[i][1]) {
+                    repeatedSquares += 1
+                    break
+                }
+                
+            }
+        }
+
+        //check if the room overlaps with any of the hallways
+        function checkRoomSpace(room, roomIndex, squareLog) {
+            for (let i=0; i<squareLog.length; i++) {
+                //cheeck to see if room dimensions overlap with ALL square tiles of the hallways (add padding so that the walls of the room are accounted for)
+                if (collideRectRect(room[0] - rectWidth, room[1] - rectWidth, roomList[roomIndex][0] + 2*rectWidth, roomList[roomIndex][1] + 2*rectWidth, squareLog[i][0] - rectWidth/2, squareLog[i][1] - rectWidth/2, rectWidth, rectWidth) == true) {
+                    return false
+                }
+            }
+            return true
+        }
+
+        //check to see if any rooms overlap with each other
+        function checkRoomOverlap(room, roomIndex, dummyRoomList, realRoomList) {
+            for (let i=0; i<realRoomList.length; i++) {
+                //cheeck to see if room dimensions don't overlap with ALL of the rooms (add padding so that the walls of the room are accounted for)
+                if (collideRectRect(room[0] - rectWidth, room[1] - rectWidth, dummyRoomList[roomIndex][0] + rectWidth * 2, dummyRoomList[roomIndex][1] + rectWidth * 2, realRoomList[i][0], realRoomList[i][1], realRoomList[i][2], realRoomList[i][3]) == true) {
+                    return false
+                }
+            }
+            return true
+        }
+
+        //check if a tile (border) overlaps with any rooms
+        function checkRoomBorderOverlap(tile, trueRoomList) {
+            for (let i=0;i<trueRoomList.length;i++) {
+                //adjust from center orientation to corner orientation
+                if (collideRectRect(tile[0] - rectWidth/2, tile[1] - rectWidth/2, rectWidth, rectWidth, trueRoomList[i][0], trueRoomList[i][1], roomList[i][0], roomList[i][1]) == true ){
+                    //if there is a collision detected among the tile and the room, return true to say that there should not be a border tile in that position
+                    return true
+                }
+            }
+
+            return false
+
+        }
+
+     
+
+        //searched array is the array we are looking for
+        function ArrayIncludes(array, searchedValue) {
+            for (i=0;i<array.length; i++){
+                if (array[i][0] == searchedValue[0] && array[i][1] == searchedValue[1]) {
+                    return true
+                }
+            }
+            return false
+        }
+
+        function ArrayIncludesTwoThree(array, searchedValue) {
+            for (i=0;i<array.length; i++){
+                if (array[i][1] == searchedValue[1] && array[i][2] == searchedValue[2]) {
+                    return true
+                }
+            }
+            return false
+        }
+
+        //check to see if we are approaching an intersection
+        function intersectionChecker(constructionX, constructionY, squareLog) {
+            //generate a list of all the possible corner tiles the tile could have
+            //CHECK TO SEE IF THE CONSTRUCTION TILE REACHED THE LIMIT
+            if (constructionX < leftLimit || constructionX > rightLimit) {
+                return false
+            }
+            if (constructionY < upperLimit || constructionY > lowerLimit) {
+                return false
+            }
+            if (ArrayIncludes(squareLog, [constructionX, constructionY]) == true) {
+                
+                console.log("OVERLAP DETECTED")
+                return false
+            }
+            possibleCorners = []
+            possibleCorners.push([constructionX - 25, constructionY - 25])
+            possibleCorners.push([constructionX + 25, constructionY + 25])
+            possibleCorners.push([constructionX - 25, constructionY + 25])
+            possibleCorners.push([constructionX + 25, constructionY + 25])
+            let indicator = false
+            let realCorners = []
+            for (let i=0;i<possibleCorners.length; i++) {
+                //real tile is a real, placed tile and we will use the variable to check to see if the tile is in a corner of the construction tile 
+
+                if (ArrayIncludes(squareLog, possibleCorners[i]) == true) {
+                    realCorners.push(possibleCorners[i])
+                }
+
+            }
+            console.log(realCorners)
+            console.log("real corners " + realCorners)
+            for (let i=0;i<realCorners.length;i++) {
+                //check to see which corner it is
+                //use math to determine the position of the corner tile in relation to the construction tile (formula: cornerCoordinate - constructionTileCoordinate)
+                let differenceOfX = realCorners[i][0] - constructionX
+                let differenceOfY = realCorners[i][1] - constructionY
+                
+                //if the corner tile is in the upper left corner
+                if(differenceOfX == -rectWidth && differenceOfY == -rectWidth) {
+                    //checks the tile BELOW the corner and to the RIGHT of the corner
+                    if (ArrayIncludes(squareLog, [realCorners[i][0]+rectWidth, realCorners[i][1]]) == true && ArrayIncludes(squareLog, [realCorners[i][0], realCorners[i][1] + rectWidth]) == true) {
+                        return false
+                    }
+                }
+                //if the corner tile is in the upper right corner
+                if (differenceOfX == rectWidth && differenceOfY == -rectWidth) {
+                    //checks the tile BELOW and to the LEFT of the corner
+                    if (ArrayIncludes(squareLog, [realCorners[i][0] - rectWidth, realCorners[i][1]]) == true && ArrayIncludes(squareLog, [realCorners[i][0], realCorners[i][1]+rectWidth]) == true) {
+                        return false
+                    }
+                }
+                 //if the corner tile is in the lower left corner
+                 if (differenceOfX == -rectWidth && differenceOfY == rectWidth) {
+                    //checks the tile ABOVE and to the RIGHT  of the corner
+                    if (ArrayIncludes(squareLog, [realCorners[i][0] + rectWidth, realCorners[i][1]]) == true && ArrayIncludes(squareLog, [realCorners[i][0], realCorners[i][1]-rectWidth]) == true) {
+                        return false
+                    }
+                }
+                //if the corner tile is in the lower right corner
+                if (differenceOfX == rectWidth && differenceOfY == rectWidth) {
+                    //checks the tile ABOVE and to the LEFT  of the corner
+                    if (ArrayIncludes(squareLog, [realCorners[i][0] - rectWidth, realCorners[i][1]]) == true && ArrayIncludes(squareLog, [realCorners[i][0], realCorners[i][1]-rectWidth]) == true) {
+                        return false
+                    }
+                }
+                
+            }
+        }
+
+        let floorTile
+        function preload() {
+            floorTile = loadImage("floorTile.png")
+            wallTile = loadImage("wallTile.png")
+            wallTileDown = loadImage("wallTileDown.png")
+            wallTileLeft = loadImage("wallTileLeft.png")
+            wallTileRight = loadImage("wallTileRight.png")
+            wallTileRightCorner = loadImage("wallTileRightCorner.png")
+            wallTileLeftCorner = loadImage("wallTileLeftCorner.png")
+        }
+        let finalX
+        let finalY
+        function setup() {
+            createCanvas(windowWidth, windowHeight)
+            rectMode(CENTER)
+            imageMode(CENTER)
+            fill(0, 255, 0)
+                rect(constructionX, constructionY, rectWidth, rectWidth)
+                squareLog.push([constructionX, constructionY])
+                
+                let russia = 0
+                let numberofSquareProduced = 0
+                for (let i = 0; squareLog.length < 500; i++) {
+                    //determine where the next square is gonna be
+                    constructionType = random(0, 25)
+                    //moveForward RELATIVE to where the squares are generating
+                    //1000 downOrient
+                    if (constructionType <= 10) {
+                        //~200 downOrient
+                        if (forwardType == "downOrient") {
+                            constructionY += rectWidth
+                        }
+                        if (forwardType == "leftOrient") {
+                            constructionX -= rectWidth
+                        }
+                        if (forwardType == "rightOrient") {
+                            constructionX += rectWidth
+                        }
+                        if (forwardType == "upOrient") {
+                            constructionY -= rectWidth
+                        }
+                    
+                        if (intersectionChecker(constructionX, constructionY, squareLog) != false && squareChecker(constructionX, constructionY, squareLog) <= 2) {
+                            fill(255, 255, 0)
+                            image(floorTile, constructionX, constructionY, rectWidth, rectWidth)
+
+                            //add the tile to the log of all the tiles (for future reference)
+                            squareLog.push([constructionX, constructionY])
+
+                            backupConstructorX = constructionX
+                            backupConstructorY = constructionY
+                            dangerZone = 0
+                            numberofSquareProduced +=1
+                            console.log([constructionX, constructionY])
+                        } 
+                        
+                        else {
+                            i -= 1
+                            console.log("ELSE HAS INITIATED")
+                            constructionX = backupConstructorX
+                            constructionY = backupConstructorY
+                            dangerZone += 1
+                            if (dangerZone >= 4) {
+
+                                //if there is no path forward, choose a random tile to go from
+                                console.log(squareLog)
+                                let randomTile = squareLog[Math.floor(random(0, squareLog.length))]
+                                constructionX = randomTile[0]
+                                constructionY = randomTile[1]
+                            }
+                        }
+
+                        
+
+                    }
+                    //move LEFT relative to the generation of squares
+                    if (constructionType > 10 && constructionType <= 15) {
+                        i -=1
+                        if (forwardType == "downOrient") {
+                            forwardType = "leftOrient"
+                            //the variable forwardType here is assigned the left orient value, BUT is not reassigned in the next iteration
+                        }
+                        else if (forwardType == "leftOrient") {
+                            forwardType = "downOrient"
+                        }
+                        else if (forwardType == "rightOrient") {
+                            forwardType = "upOrient"
+                        }
+                        else if (forwardType == "upOrient") {
+                            forwardType = "rightOrient"
+                        }
+                    }
+                    //move RIGHT relative to the generation of squares
+                    if (constructionType > 15 && constructionType <= 20) {
+                        i -= 1
+                        if (forwardType == "downOrient") {
+                            forwardType = "rightOrient"
+                        }
+                        else if (forwardType == "leftOrient") {
+                            forwardType = "upOrient"
+                        }
+                        else if (forwardType == "rightOrient") {
+                            forwardType = "downOrient"
+                        }
+                        else if (forwardType == "upOrient") {
+                            forwardType = "leftOrient"
+                        }
+                    }
+
+                    russia+=1
+
+                    console.log(russia)
+                    console.log(i)
+
+                }
+                finalX = squareLog[squareLog.length - 1][0]
+                finalY = squareLog[squareLog.length - 1][1]
+                squareLog.pop()
+
+                //after hallway is set up, we will now generate the rooms
+                //PROBLEM: #1 how do we see and make sure rooms don't overlap with each other
+                //PROBLEM: #2 how to make sure that the room is rotated CORRECTLY, if we just use default dimensional params, the room will always face the same direction, which may not always be suitable, especially since rooms can be generated up and down or side to side
+                for (let i=0;i<roomList.length;i++) {
+                    //randomly generate an index so that the room will generate in a random place 
+                    let randomIndex = Math.floor(random(Math.floor(squareLog.length/2), squareLog.length))
+                    let attempt = 0 
+                    let type = 0
+                    let isItFlippedYet = false
+
+                    // check to see if a left side room is possible
+                    //Formula: x: CENTER position of the square tile - 2 tiles - half a tile (to adjust for the center measure and convert to a left measurement) - room width (to get to the left corner)
+                    let roomDimension = [squareLog[randomIndex][0] - 2*rectWidth - roomList[i][0] - rectWidth/2, squareLog[randomIndex][1] - roomList[i][1]/2]
+                    if (checkRoomSpace(roomDimension, i, squareLog) == true) {
+                        //set up for the conditions in which the room will be set up
+                        rectMode(CORNERS)
+                        rect(roomDimension[0], roomDimension[1], roomList[i][0], roomList[i][1])
+                        console.log("ROOOM ACTIVATION")
+                        attempt +=1 
+                        generationType = "left"
+                        
+                    }
+                    // check change room dimensions to see if a right side room is possible if a left is not possible
+                    else if (attempt == 0) {
+                        roomDimension = [squareLog[randomIndex][0] + 2*rectWidth + rectWidth/2, squareLog[randomIndex][1] - roomList[i][1]/2]
+                    }
+                    if (checkRoomSpace(roomDimension, i, squareLog) == true && attempt == 0) {
+                        //set up for the conditions in which the room will be set up
+                        rectMode(CORNERS)
+                        rect(roomDimension[0], roomDimension[1], roomList[i][0], roomList[i][1])
+                        attempt +=1 
+                        generationType = "right"
+                    }
+                    // check change room dimensions to see if a bottom side room is possible if a right/left is not possible
+                    else if (attempt == 0) {
+                        //flip the X and Y sizes
+                        roomList[i].reverse()
+                        isItFlippedYet = true
+                        roomDimension = [squareLog[randomIndex][0] - roomList[i][0]/2, squareLog[randomIndex][1] + 2*rectWidth + rectWidth/2]
+                        
+                        
+                        
+                    }
+
+                    if (checkRoomSpace(roomDimension, i, squareLog) == true && attempt == 0) {
+                        //set up for the conditions in which the room will be set up
+                        rectMode(CORNERS)
+                        rect(roomDimension[0], roomDimension[1], roomList[i][0], roomList[i][1])
+                        attempt +=1 
+                        generationType = "down"
+                        console.log("actual X")
+
+                    }
+
+                    // check change room dimensions to see if a up side room is possible if a right/left/down is not possible
+                    else if (attempt == 0) {
+                        roomDimension = [squareLog[randomIndex][0] - roomList[i][0]/2, squareLog[randomIndex][1] - 2*rectWidth - rectWidth/2 - roomList[i][1]]
+
+                        //flip the X and Y sizes if not already
+                        if (isItFlippedYet == false) {
+                            roomList[i].reverse()
+                            isItFlippedYet = true
+                        }
+                    }
+
+                    if (checkRoomSpace(roomDimension, i, squareLog) == true && attempt == 0) {
+                        //set up for the conditions in which the room will be set up
+                        rectMode(CORNERS)
+                        rect(roomDimension[0], roomDimension[1], roomList[i][0], roomList[i][1])
+                        console.log("ROOOM ACTIVATION")
+                        attempt +=1 
+                        generationType = "up"
+                        console.log("actual up")
+                    }
+
+                    //check to see if rooms overlap each other
+
+
+                    if (checkRoomOverlap(roomDimension, i, roomList, trueRoomList) == false) {
+                        console.log("Actual room dimension is ", roomDimension)
+                        attempt = 0
+                    }
+
+                    if (attempt == 0) {
+                        if (isItFlippedYet == true) {
+                            //flip back the X and Y if it was flipped before
+                            roomList[i].reverse()
+                        }
+                        i -= 1
+                    }
+                    else {
+                        //add the connecting path to the room depending on where the room is
+                        //left side room
+                        if (generationType == "left")  {
+                            let firstSquareX = squareLog[randomIndex][0] - rectWidth
+                            squareLog.push([squareLog[randomIndex][0] - rectWidth, squareLog[randomIndex][1]])
+                            squareLog.push([squareLog[randomIndex][0] - 2*rectWidth, squareLog[randomIndex][1]])
+                            console.log("THE GENERATION TYPE IS LEFT")
+                        }
+                        else if (generationType == "right") {
+                            //double as there are 2 squares apart
+                            squareLog.push([squareLog[randomIndex][0] + rectWidth, squareLog[randomIndex][1]])
+                            squareLog.push([squareLog[randomIndex][0] + 2*rectWidth, squareLog[randomIndex][1]])
+                        }
+                        
+                        else if (generationType == "down") {
+                            squareLog.push([squareLog[randomIndex][0], squareLog[randomIndex][1] + rectWidth])
+                            squareLog.push([squareLog[randomIndex][0], squareLog[randomIndex][1] + 2*rectWidth])
+                        }
+
+                        else if (generationType == "up") {
+                            squareLog.push([squareLog[randomIndex][0], squareLog[randomIndex][1] - rectWidth])
+                            squareLog.push([squareLog[randomIndex][0], squareLog[randomIndex][1] - 2*rectWidth])
+                        }
+                        //add the room into the array for later rendering [x, y, sizeX, sizeY]
+                        trueRoomList.push([roomDimension[0], roomDimension[1], roomList[i][0], roomList[i][1]])
+                        console.log("The real dimension collision is ", roomDimension)
+
+                    }                    
+                }
+
+                //now we create the borders/wall blocks
+                // cycle through every hallway tile and check to see if it needs borders
+                for (let i=0; i<squareLog.length; i++) {
+                    //check to see to the UP side of the tile is viable
+                    let tile = [squareLog[i][0], squareLog[i][1] - rectWidth]
+                    //make sure there is no impediment in placing a border block there. If there is, don't place the block
+                    if (ArrayIncludes(squareLog, tile) != true && checkRoomBorderOverlap(tile, trueRoomList) != true){
+                        tile = [squareLog[i][0], squareLog[i][1] - rectWidth]
+                        if (ArrayIncludes(borderLog, tile) != true) {
+                            borderLog.push(tile)
+                        }
+                        wallLog.push([wallTile, tile[0], tile[1]])
+                    }
+                    //check to see to the DOWN side of the tile is viable
+                    tile = [squareLog[i][0], squareLog[i][1] + rectWidth]
+                    if (ArrayIncludes(squareLog, tile) != true && checkRoomBorderOverlap(tile, trueRoomList) != true){
+                        if (ArrayIncludes(borderLog, tile) != true) {
+                            borderLog.push(tile)
+                        }
+                        wallLog.push([wallTileDown, tile[0], tile[1]])
+                    }
+                    //check to see to the RIGHT side of the tile is viable
+                    tile = [squareLog[i][0] + rectWidth, squareLog[i][1]]
+                    if (ArrayIncludes(squareLog, tile) != true && checkRoomBorderOverlap(tile, trueRoomList) != true){
+                        if (ArrayIncludes(borderLog, tile) != true) {
+                            borderLog.push(tile)
+                        }
+                        wallLog.push([wallTileRight, tile[0], tile[1]])
+                    }
+                    //check to see to the LEFT side of the tile is viable
+                    tile = [squareLog[i][0] - rectWidth, squareLog[i][1]]
+                    if (ArrayIncludes(squareLog, tile) != true && checkRoomBorderOverlap(tile, trueRoomList) != true){
+                        if (ArrayIncludes(borderLog, tile) != true) {
+                            borderLog.push(tile)
+                        }
+                        wallLog.push([wallTileLeft, tile[0], tile[1]])
+                    }
+
+                } 
+
+                //generate borders for rooms
+                for (let i = 0; i<trueRoomList.length; i++) {
+                    //determine how many times we will have to do the loop (down and up)
+                    let numberOfIterationY = trueRoomList[i][3]/rectWidth
+                    //determine how many times we will have to do the loop (right and left)
+                    let numberOfIterationX = trueRoomList[i][2]/rectWidth
+                    
+                    let startingPosition = [trueRoomList[i][0] - (rectWidth/2), trueRoomList[i][1] + (rectWidth/2)]
+                    console.log(trueRoomList[i] + " starting position: "+ startingPosition)
+                    console.log(trueRoomList[i])
+                    //adds border tiles to the left of the room
+                    for (let j=0; j<numberOfIterationY; j++) {
+                        //only add to the array if there is no overlapping tile
+                        if (ArrayIncludes(squareLog, startingPosition) != true) {
+                            borderLog.push(startingPosition)
+                            wallLog.push([wallTileLeft, startingPosition[0], startingPosition[1]])
+                        }
+                        else {
+                            wallLog.push([wallTile, startingPosition[0], startingPosition[1] - rectWidth])
+
+                            wallLog.push([wallTileDown, startingPosition[0], startingPosition[1] + rectWidth])
+                        }
+                    
+                        startingPosition = [startingPosition[0], startingPosition[1] + rectWidth]
+                    }
+                    startingPosition = [trueRoomList[i][0] + trueRoomList[i][2] + (rectWidth/2), trueRoomList[i][1] + (rectWidth/2)] 
+                    //adds border tiles to the right of the room
+                    for (let j=0; j<numberOfIterationY; j++) {
+                        //only add to the array if there is no overlapping tile
+                        if (ArrayIncludes(squareLog, startingPosition) != true) {
+                            borderLog.push(startingPosition)
+                            wallLog.push([wallTileRight, startingPosition[0], startingPosition[1]])
+                        }
+                        else {
+                            wallLog.push([wallTile, startingPosition[0], startingPosition[1] - rectWidth])
+
+                            wallLog.push([wallTileDown, startingPosition[0], startingPosition[1] + rectWidth])
+                        }
+                        
+                        startingPosition = [startingPosition[0], startingPosition[1] + rectWidth]
+                    }
+                    startingPosition = [trueRoomList[i][0] + (rectWidth/2), trueRoomList[i][1] + trueRoomList[i][3] + (rectWidth/2)] 
+                    //adds tiles on the bottom of the room
+                    for (let j=0; j<numberOfIterationX; j++) {
+                        //only add to the array if there is no overlapping tile
+                        if (ArrayIncludes(squareLog, startingPosition) != true) {
+                            borderLog.push(startingPosition)
+                            wallLog.push([wallTileDown, startingPosition[0], startingPosition[1]])
+                        }
+                        else {
+                            wallLog.push([wallTileRight, startingPosition[0] + rectWidth, startingPosition[1]])
+
+                            wallLog.push([wallTileLeft, startingPosition[0] - rectWidth, startingPosition[1]])
+                        }
+                        startingPosition = [startingPosition[0] + rectWidth, startingPosition[1]]
+                    }
+                    startingPosition = [trueRoomList[i][0] + (rectWidth/2), trueRoomList[i][1] - (rectWidth/2)] 
+                    //adds tiles on the top of the room
+                    for (let j=0; j<numberOfIterationX; j++) {
+                        //only add to the array if there is no overlapping tile
+                        if (ArrayIncludes(squareLog, startingPosition) != true) {
+                            borderLog.push(startingPosition)
+                            wallLog.push([wallTile, startingPosition[0], startingPosition[1]])
+                        }
+                        else {
+                            wallLog.push([wallTileRight, startingPosition[0] + rectWidth, startingPosition[1]])
+
+                            wallLog.push([wallTileLeft, startingPosition[0] - rectWidth, startingPosition[1]])
+                        }
+                        
+                        startingPosition = [startingPosition[0] + rectWidth, startingPosition[1]]
+                    }
+                    
+
+                }
+
+                //we will create a new array so that it will hold updated priorities to generate the walls
+                let trueWallList = []
+
+                //update the priorities
+                for (let i=0;i<wallLog.length;i++) {
+
+                    if (wallLog[i][0] != wallTile) {
+                        trueWallList.push(wallLog[i])
+                    }
+                }
+                //update the priorities
+                for (let i=0;i<wallLog.length;i++) {
+
+                    if (wallLog[i][0] == wallTile) {
+                        trueWallList.push(wallLog[i])
+
+                        //check to see if one of the wall tiles have a corner that includes a wall
+                        if (ArrayIncludesTwoThree(wallLog, [true, wallLog[i][1] - rectWidth, wallLog[i][2] + rectWidth]) == true && ArrayIncludes(squareLog, [wallLog[i][1] - rectWidth, wallLog[i][2]]) != true) {
+                            trueWallList.push([wallTileLeftCorner, wallLog[i][1] - rectWidth, wallLog[i][2]])
+                        }
+
+                        if (ArrayIncludesTwoThree(wallLog, [true, wallLog[i][1] + rectWidth, wallLog[i][2] + rectWidth]) == true && ArrayIncludes(squareLog, [wallLog[i][1] + rectWidth, wallLog[i][2]]) != true) {
+                            trueWallList.push([wallTileRightCorner, wallLog[i][1] + rectWidth, wallLog[i][2]])
+                        }
+                    }
+                }
+
+                wallLog = trueWallList
+            
+                
+
+                
+                console.log(borderLog)
+                
+ 
+                console.log("intersect check "+ intersectionChecker(finalX, finalY , squareLog))
+                console.log("Russia is "+ i)
+                console.log("# of square produced is "+ numberofSquareProduced)
+        }
+
+        // the ranges: forward(0-10), turnLeft(10-15), turnRight(15-20), turnUp(20-25)
+        //NO FILL RAWLY IN DRAW
+        let positionX = -3 * rectWidth
+        let positionY = -3 * rectWidth
+        function draw() {
+            clear()
+            rectMode(CORNER)
+            background(70, 70, 70)
+            
+            document.getElementsByTagName("h1")[0].innerHTML = "X "+ mouseX + "Y "+ mouseY
+
+            fill(140, 140, 140)
+            rect(positionX, positionY, rightLimit/2, lowerLimit)
+
+            rectMode(CENTER)
+
+            //when player moves left, move the squares right
+            if (keyIsDown(65) == true) {
+                for (let i=0; i<squareLog.length; i++) {
+                    squareLog[i][0] += cameraSpeed
+                }
+                for (let j=0; j< trueRoomList.length; j++) {
+                    trueRoomList[j][0] += cameraSpeed
+                }
+                for (let i=0; i<borderLog.length; i++) {
+                    borderLog[i][0] += cameraSpeed
+                }
+                for (let i=0; i<wallLog.length; i++) {
+                    wallLog[i][1] += cameraSpeed
+                }
+                positionX += cameraSpeed
+            }
+            //when player moves right, move the squares left
+            if (keyIsDown(68) == true) {
+                for (let i=0; i<squareLog.length; i++) {
+                    squareLog[i][0] -= cameraSpeed
+                }
+                for (let j=0; j< trueRoomList.length; j++) {
+                    trueRoomList[j][0] -= cameraSpeed
+                }
+                for (let i=0; i<borderLog.length; i++) {
+                    borderLog[i][0] -= cameraSpeed
+                }
+                for (let i=0; i<wallLog.length; i++) {
+                    wallLog[i][1] -= cameraSpeed
+                }
+                positionX -= cameraSpeed
+            }
+            //when player moves up, move the squares down
+            if (keyIsDown(87) == true) {
+                for (let i=0; i<squareLog.length; i++) {
+                    squareLog[i][1] += cameraSpeed
+                }
+                for (let j=0; j< trueRoomList.length; j++) {
+                    trueRoomList[j][1] += cameraSpeed
+                }
+                for (let i=0; i<borderLog.length; i++) {
+                    borderLog[i][1] += cameraSpeed
+                }
+                for (let i=0; i<wallLog.length; i++) {
+                    wallLog[i][2] += cameraSpeed
+                }
+                positionY += cameraSpeed
+            }
+            //when the players moves down, moves the squares up
+            if (keyIsDown(83) == true) {
+                for (let i=0; i<squareLog.length; i++) {
+                    squareLog[i][1] -= cameraSpeed
+                }
+                for (let j=0; j< trueRoomList.length; j++) {
+                    trueRoomList[j][1] -= cameraSpeed
+                }
+                for (let i=0; i<borderLog.length; i++) {
+                    borderLog[i][1] -= cameraSpeed
+                }
+                for (let i=0; i<wallLog.length; i++) {
+                    wallLog[i][2] -= cameraSpeed
+                }
+                positionY -= cameraSpeed
+            }
+            
+
+            fill(0, 255, 0)
+            imageMode(CENTER)
+            for (let i=0; i<squareLog.length; i++) {
+                image(floorTile, squareLog[i][0], squareLog[i][1], rectWidth, rectWidth)
+            }
+
+            fill(140, 140, 140)
+            noStroke()
+            for (let i=0; i<borderLog.length; i++) {
+                
+                rect(borderLog[i][0], borderLog[i][1], rectWidth, rectWidth)
+            }
+            for (let i= 0; i <wallLog.length; i++) {
+                image(wallLog[i][0], wallLog[i][1], wallLog[i][2], rectWidth, rectWidth)
+            }
+
+            rectMode(CORNER)
+            fill(0, 255, 0)
+            for (let j=0; j< trueRoomList.length; j++) {
+                rect(trueRoomList[j][0], trueRoomList[j][1], trueRoomList[j][2], trueRoomList[j][3])
+            }
+
+            fill(255, 0, 0)
+
+
+        }
+    </script>
+</body>
+
+</html>
