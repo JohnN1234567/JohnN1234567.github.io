@@ -53,7 +53,7 @@
         let leftLimit = 0
         let rightLimit = 100 * rectWidth
 
-        let lootWidth = 0.5
+        let lootWidth = 0.75
 
         let backupConstructorX = 0 + rectWidth/2
         let backupConstructorY = 0 + rectWidth/2
@@ -65,6 +65,7 @@
         let wallTileDown
         let wallTileRight
         let wallTileLeft
+        let LootTypeList = []
         //format for rooms: roomLength, room Width, we will multiply the dimensions by rectWidth to ensure uniformity in increments, additionally make sure all measurements are odd #s so that it can fit with hallway tiles
         let roomList = [[7 * rectWidth, 11 * rectWidth], [7*rectWidth, 7*rectWidth], [7*rectWidth, 11*rectWidth]]
         let trueRoomList = []
@@ -75,17 +76,16 @@
             let generateComplete = false
             this.x
             this.y
-            while (generateComplete == false) {
+            this.dimensionX = (lootWidth * rectWidth)
+            this.dimensionY = (lootWidth * rectWidth)
                 //we will make adjustments to position X to make sure loot doesn't generate in the walls
                 this.x = random(posX, posX + sizeX - (lootWidth * rectWidth))
                 this.y = random(posY, posY + sizeY - (lootWidth * rectWidth) )
 
-                //make sure it doesn't overlap with any other loot
-                if (collideRectRect(posX, posY, sizeX, sizeY, this.x, this.y, (lootWidth * rectWidth), (lootWidth * rectWidth)) == false) {
-                    generateComplete = true
-                }
-            }
+                
             
+                this.LootType = LootTypeList[Math.floor(random(0, LootTypeList.length))]
+
         }
 
         //this function will help to see if there are any squares in the corner, (we don't want squares to clump up)
@@ -279,6 +279,8 @@
             wallTileRight = loadImage("wallTileRight.png")
             wallTileRightCorner = loadImage("wallTileRightCorner.png")
             wallTileLeftCorner = loadImage("wallTileLeftCorner.png")
+            LootTypeList.push(loadImage("Medkit.png"))
+            
         }
         let finalX
         let finalY
@@ -594,10 +596,10 @@
                     startingPosition = [trueRoomList[i][0] + (rectWidth/2), trueRoomList[i][1] - (rectWidth/2)] 
                     //adds tiles on the top of the room
                     for (let j=0; j<numberOfIterationX; j++) {
-                        //only add to the array if there is no overlapping tile
+                        //only add to the array if there is no overlapping tile, we will add a true property at the end so that it will not remove a wall tile from the room for the door
                         if (ArrayIncludes(squareLog, startingPosition) != true) {
                             borderLog.push(startingPosition)
-                            wallLog.push([wallTile, startingPosition[0], startingPosition[1]])
+                            wallLog.push([wallTile, startingPosition[0], startingPosition[1], true])
                         }
                         else {
                             wallLog.push([wallTileRight, startingPosition[0] + rectWidth, startingPosition[1]])
@@ -637,7 +639,10 @@
                         if (ArrayIncludesTwoThree(wallLog, [true, wallLog[i][1] + rectWidth, wallLog[i][2] + rectWidth]) == true && ArrayIncludes(squareLog, [wallLog[i][1] + rectWidth, wallLog[i][2]]) != true) {
                             trueWallList.push([wallTileRightCorner, wallLog[i][1] + rectWidth, wallLog[i][2]])
                         }
-                        amountOfWalls += 1
+                        if (wallLog[i].length == 3) {
+                            amountOfWalls += 1
+                        }
+                        
                     }
                 }
 
@@ -648,14 +653,25 @@
                 //choose one of the wall tiles to add a door on
 
                 for (let i=0;i<wallLog.length;  i++) {
-                    if (amountOfWalls == indexOfDoor && wallLog[i][0] == wallTile) {
+                    if (amountOfWalls == indexOfDoor && wallLog[i][0] == wallTile && wallLog[i].length == 3) {
                         wallLog.splice(i, 1)
                     }
 
-                    if (wallLog[i][0] == wallTile){
+                    if (wallLog[i][0] == wallTile && wallLog[i].length == 3){
                         amountOfWalls += 1
                     }
                     
+                }
+
+                //loot generation
+                for (let i=0; i<trueRoomList.length; i++) {
+                    //determine the amount of loot
+                    let lootAmount = Math.floor(random(1, (trueRoomList[i][2] * trueRoomList[i][3])/(lootWidth * rectWidth)**2/15))
+                    console.log("Loot amount is ", lootAmount)
+                    for (let j=0; j<lootAmount;j++) {
+                        let loot = new generateLoot(trueRoomList[i][0],trueRoomList[i][1], trueRoomList[i][2], trueRoomList[i][3])
+                        lootLog.push(loot)
+                    }
                 }
                 
 
@@ -692,6 +708,9 @@
                 for (let i=0; i<wallLog.length; i++) {
                     wallLog[i][1] += cameraSpeed
                 }
+                for (let i=0; i<lootLog.length; i++) {
+                    lootLog[i].x += cameraSpeed
+                }
                 positionX += cameraSpeed
             }
             //when player moves right, move the squares left
@@ -707,6 +726,9 @@
                 }
                 for (let i=0; i<wallLog.length; i++) {
                     wallLog[i][1] -= cameraSpeed
+                }
+                for (let i=0; i<lootLog.length; i++) {
+                    lootLog[i].x -= cameraSpeed
                 }
                 positionX -= cameraSpeed
             }
@@ -724,6 +746,9 @@
                 for (let i=0; i<wallLog.length; i++) {
                     wallLog[i][2] += cameraSpeed
                 }
+                for (let i=0; i<lootLog.length; i++) {
+                    lootLog[i].y += cameraSpeed
+                }
                 positionY += cameraSpeed
             }
             //when the players moves down, moves the squares up
@@ -739,6 +764,9 @@
                 }
                 for (let i=0; i<wallLog.length; i++) {
                     wallLog[i][2] -= cameraSpeed
+                }
+                for (let i=0; i<lootLog.length; i++) {
+                    lootLog[i].y -= cameraSpeed
                 }
                 positionY -= cameraSpeed
             }
@@ -768,6 +796,11 @@
 
             fill(255, 0, 0)
 
+            imageMode(CORNER)
+            
+            for (let i= 0; i <lootLog.length; i++) {
+                image(lootLog[i].LootType, lootLog[i].x, lootLog[i].y, lootLog[i].dimensionX, lootLog[i].dimensionY)
+            }
 
         }
     </script>
