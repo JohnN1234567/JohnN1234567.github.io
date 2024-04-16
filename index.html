@@ -66,6 +66,7 @@
         let wallTileRight
         let wallTileLeft
         let LootTypeList = []
+        let oppList = []
         //format for rooms: roomLength, room Width, we will multiply the dimensions by rectWidth to ensure uniformity in increments, additionally make sure all measurements are odd #s so that it can fit with hallway tiles
         let roomList = [[7 * rectWidth, 11 * rectWidth], [7*rectWidth, 7*rectWidth], [7*rectWidth, 11*rectWidth]]
         let trueRoomList = []
@@ -89,13 +90,18 @@
         }
 
         let newAlien
-        function newEnemyNPC() {
+        function newEnemyNPC(modelType) {
             this.sizeX = rectWidth * 0.75 
             this.sizeY = rectWidth * 0.75 
-            this.x
-
+            let chosenSquare = squareLog[Math.floor(random(0, squareLog.length))]
+            // position the enemy accordingly
+            this.x = chosenSquare[0] - this.sizeX/2
+            this.y = chosenSquare[1] - this.sizeY/2
+            this.model = modelType
+            console.log(this.x)
             this.iterationTime = 5000
             this.lastChecked = millis()
+            this.generatedPath
         }
 
         //this function will help to see if there are any squares in the corner, (we don't want squares to clump up)
@@ -294,7 +300,10 @@
             return Math.abs(currentPos[0] - targetPos[0]) + Math.abs(currentPos[1] - targetPos[1])
         }
 
+        let npcCount
         let floorTile
+        let alienModelList = []
+        let characterModelList = []
         function preload() {
             floorTile = loadImage("floorTile.png")
             wallTile = loadImage("wallTile.png")
@@ -305,12 +314,21 @@
             wallTileLeftCorner = loadImage("wallTileLeftCorner.png")
             LootTypeList.push(loadImage("Medkit.png"))
             
+            alienModelList.push(loadImage("AlienArt/ClassicAlien.png"))
+            alienModelList.push(loadImage("AlienArt/CreepyAlien.png"))
+            alienModelList.push(loadImage("AlienArt/CuddlyAlien.png"))
+
+            characterModelList.push(loadImage("CharacterArt/MainCharacter1.png"))
+            characterModelList.push(loadImage("CharacterArt/MainCharacter2.png"))
+            characterModelList.push(loadImage("CharacterArt/MainCharacter3.png"))
+
         }
         let finalX
         let finalY
         let generatedPath = []
         function setup() {
-            newAlien = new newEnemyNPC()
+            npcCount = Math.floor(random(2, 3))
+            
             createCanvas(windowWidth, windowHeight)
             rectMode(CENTER)
             imageMode(CENTER)
@@ -701,9 +719,15 @@
                 }
                 
                 //npc ALGORITHM
-                
 
-    
+                console.log("NPC COUNT IS, ", npcCount)
+                //GENERATE NPCs
+                for (let i=0;i < npcCount; i++) {
+                    let enemy = new newEnemyNPC(alienModelList[0])
+                    console.log("enemy lastchecked is, ", enemy.lastChecked)
+                    oppList.push(enemy)
+                }
+            
         }
         function runAI() {
             let openTiles = []
@@ -1056,9 +1080,15 @@
             }
 
 
-            if (millis() - newAlien.lastChecked > newAlien.iterationTime){
-                console.log("HELLO")
-                newAlien.lastChecked = millis()
+
+            imageMode(CORNER) 
+            for (let i=0; i<oppList.length; i++) {
+                if (millis() - oppList[i].lastChecked > oppList[i].iterationTime) {
+                    console.log("HELLO")
+                    oppList[i].lastChecked = millis()
+                }
+                image(oppList[i].model, oppList[i].x, oppList[i].y, oppList[i].sizeX, oppList[i].sizeY)
+                console.log("THIS RAN")
             }
         
         }
