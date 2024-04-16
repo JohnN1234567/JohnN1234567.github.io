@@ -85,7 +85,17 @@
                 
             
                 this.LootType = LootTypeList[Math.floor(random(0, LootTypeList.length))]
+    
+        }
 
+        let newAlien
+        function newEnemyNPC() {
+            this.sizeX = rectWidth * 0.75 
+            this.sizeY = rectWidth * 0.75 
+            this.x
+
+            this.iterationTime = 5000
+            this.lastChecked = millis()
         }
 
         //this function will help to see if there are any squares in the corner, (we don't want squares to clump up)
@@ -300,6 +310,7 @@
         let finalY
         let generatedPath = []
         function setup() {
+            newAlien = new newEnemyNPC()
             createCanvas(windowWidth, windowHeight)
             rectMode(CENTER)
             imageMode(CENTER)
@@ -1044,6 +1055,11 @@
                 rect(generatedPath[i]["pos"][0],generatedPath[i]["pos"][1], rectWidth, rectWidth)
             }
 
+
+            if (millis() - newAlien.lastChecked > newAlien.iterationTime){
+                console.log("HELLO")
+                newAlien.lastChecked = millis()
+            }
         
         }
     </script>
