@@ -699,7 +699,7 @@
                 let closedTiles = []
                 let startingNode = []
                 let goalNode = []
-                goalNode["pos"] = [rectWidth/2, rectWidth/2]
+                goalNode["pos"] = squareLog[Math.floor(random(0, squareLog.length))]
                 startingNode["pos"] = squareLog[Math.floor(random(0, squareLog.length))]
                 startingNode["g"] = 0
                 startingNode["h"] = calculateHCostToTarget(goalNode["pos"], startingNode["pos"])
@@ -708,9 +708,12 @@
                 let lastMiliCheck = millis()
                 while (openTiles.length != 0 && finishedPathCompletion == false) {  
                     let lowestIndex = 0
-                    while (millis - lastMiliCheck < 1000) {
-                        console.log("")
+                    //if the open list is greater than 20K, it's time to stop
+                    if (closedTiles.length >= 7000) {
+                        console.log("EH")
+                        break
                     }
+                    console.log("HEY BROTHER")
                     //look at horizontal and vertical tiles to determine score
                     for (let i=0;i<openTiles.length; i++) {
                         //compare and see until we get the lowest possible f cost
