@@ -98,10 +98,10 @@
             this.x = chosenSquare[0] - this.sizeX/2
             this.y = chosenSquare[1] - this.sizeY/2
             this.model = modelType
-            console.log(this.x)
             this.iterationTime = 5000
             this.lastChecked = millis()
-            this.generatedPath
+            this.generatedPath = runAI([rectWidth/2, rectWidth/2], [this.x + this.sizeX/2, this.y + this.sizeY/2])
+            console.log("THE SAYING IS: ", ArrayIncludes(squareLog, [this.x + this.sizeX/2, this.y + this.sizeY/2]))
         }
 
         //this function will help to see if there are any squares in the corner, (we don't want squares to clump up)
@@ -325,7 +325,6 @@
         }
         let finalX
         let finalY
-        let generatedPath = []
         function setup() {
             npcCount = Math.floor(random(2, 3))
             
@@ -711,7 +710,6 @@
                 for (let i=0; i<trueRoomList.length; i++) {
                     //determine the amount of loot
                     let lootAmount = Math.floor(random(1, (trueRoomList[i][2] * trueRoomList[i][3])/(lootWidth * rectWidth)**2/15))
-                    console.log("Loot amount is ", lootAmount)
                     for (let j=0; j<lootAmount;j++) {
                         let loot = new generateLoot(trueRoomList[i][0],trueRoomList[i][1], trueRoomList[i][2], trueRoomList[i][3])
                         lootLog.push(loot)
@@ -724,18 +722,18 @@
                 //GENERATE NPCs
                 for (let i=0;i < npcCount; i++) {
                     let enemy = new newEnemyNPC(alienModelList[0])
-                    console.log("enemy lastchecked is, ", enemy.lastChecked)
                     oppList.push(enemy)
                 }
             
         }
-        function runAI() {
+        function runAI(startingPos, targetPos) {
             let openTiles = []
                 let closedTiles = []
+                let generatedPath = []
                 let startingNode = []
                 let goalNode = []
-                goalNode["pos"] = squareLog[Math.floor(random(0, squareLog.length))]
-                startingNode["pos"] = squareLog[Math.floor(random(0, squareLog.length))]
+                goalNode["pos"] = targetPos
+                startingNode["pos"] = startingPos
                 startingNode["g"] = 0
                 startingNode["h"] = calculateHCostToTarget(goalNode["pos"], startingNode["pos"])
                 openTiles.push(startingNode)
@@ -745,10 +743,8 @@
                     let lowestIndex = 0
                     //if the open list is greater than 20K, it's time to stop
                     if (closedTiles.length >= 7000) {
-                        console.log("EH")
                         break
                     }
-                    console.log("HEY BROTHER")
                     //look at horizontal and vertical tiles to determine score
                     for (let i=0;i<openTiles.length; i++) {
                         //compare and see until we get the lowest possible f cost
@@ -759,7 +755,6 @@
                     // if the next node is the goal node, refresh
                     if (ArrayCompare(goalNode["pos"], openTiles[lowestIndex]["pos"]) == true) {
                         generatedPath.push(openTiles[lowestIndex])
-                        console.log("THIS RAN")
                         let incrementer = openTiles[lowestIndex]
                        
                         while (finishedPathCompletion == false) {
@@ -770,6 +765,9 @@
                             }
                             else {
                                 finishedPathCompletion = true
+                                //reverse the array so the starting tile is first
+                                generatedPath.reverse()
+                                return generatedPath.reverse()
                             }
                             
 
@@ -788,7 +786,6 @@
                         }
                         //make sure bordering tiles are not walls
                         if (ArrayIncludes(borderLog, neighborPosition) != true && ArrayIncludes(squareLog, neighborPosition) == true && isClosed == false) {
-                            console.log("THE ARRAY HAS DETECTED")
                             //calculate g and h costs
                             neighborPosition = []
                             neighborPosition["pos"] = [openTiles[lowestIndex]["pos"][0], openTiles[lowestIndex]["pos"][1] - rectWidth]  
@@ -930,8 +927,6 @@
                         //move the parent tile to "closed category"
                         closedTiles.push(openTiles[lowestIndex])
                         openTiles.splice(lowestIndex, 1)
-                        console.log("closed: ", closedTiles.length)
-                        console.log(openTiles.length)
                     }
                     
                 }
@@ -1068,27 +1063,53 @@
                 iterate += 1
             }
             else if (iterate == 1) {
-                runAI()
                 iterate += 1
                 
             }
             lastMiliCheck = millis()
             fill(255, 0, 0)
             rectMode(CENTER) 
-            for (let i=0; i<generatedPath.length; i++) {
-                rect(generatedPath[i]["pos"][0],generatedPath[i]["pos"][1], rectWidth, rectWidth)
-            }
-
-
 
             imageMode(CORNER) 
             for (let i=0; i<oppList.length; i++) {
+                //update generated path every 5 mins
                 if (millis() - oppList[i].lastChecked > oppList[i].iterationTime) {
-                    console.log("HELLO")
                     oppList[i].lastChecked = millis()
+                    // this needs to be fixed, the dimensions sent to the Algorithm are off
+                    oppList[i].generatedPath = runAI([rectWidth/2, rectWidth/2], [oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2])
+                    
                 }
+                let targetVector
+
+                //iterate through the path to see which tile is the closest to the NPC, if a path exists
+                if (oppList[i].generatedPath) {
+                    for (let j = 0;j<oppList[i].generatedPath.length - 1; j++) {
+                        
+                        let enemyVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2)
+                        targetVector = createVector(oppList[i].generatedPath[j + 1]["pos"][0], oppList[i].generatedPath[j + 1]["pos"][1])
+                        
+                        enemyVector.lerp(targetVector, 0.000001)
+                        if (dist(enemyVector.x, enemyVector.y, targetVector.x, targetVector.y)) {
+                            oppList[i].generatedPath.splice(0, 1)
+                        }
+                        break
+                    }
+                }
+                //if a path don't exist, don't change anything
+                else {
+                    
+                    targetVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeX/2)
+                }
+                
+
+                
+                //measure from the center always
+                let enemyVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2)
+                enemyVector.lerp(targetVector, 0.1)
+                
+                oppList[i].x = enemyVector.x - oppList[i].sizeX/2
+                oppList[i].y = enemyVector.y - oppList[i].sizeY/2
                 image(oppList[i].model, oppList[i].x, oppList[i].y, oppList[i].sizeX, oppList[i].sizeY)
-                console.log("THIS RAN")
             }
         
         }
