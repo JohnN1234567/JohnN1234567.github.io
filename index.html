@@ -89,10 +89,11 @@
     
         }
 
+        let npcScaleFactor = 0.75
         let newAlien
         function newEnemyNPC(modelType) {
-            this.sizeX = rectWidth * 0.75 
-            this.sizeY = rectWidth * 0.75 
+            this.sizeX = rectWidth * npcScaleFactor 
+            this.sizeY = rectWidth * npcScaleFactor 
             let chosenSquare = squareLog[Math.floor(random(0, squareLog.length))]
             // position the enemy accordingly
             this.x = chosenSquare[0] - this.sizeX/2
@@ -936,6 +937,16 @@
         //NO FILL RAWLY IN DRAW
         let positionX = -3 * rectWidth
         let positionY = -3 * rectWidth
+
+        function checkApproxNPCPos(npcPos) {
+            for (let square of squareLog) {
+                if (collideRectRect(npcPos[0], npcPos[1], rectWidth * npcScaleFactor, rectWidth * npcScaleFactor, square[0], square[1], rectWidth, rectWidth) == true) {
+                    return square
+                }
+            }
+
+        }
+
         function draw() {
             
             clear()
@@ -1076,36 +1087,38 @@
                 if (millis() - oppList[i].lastChecked > oppList[i].iterationTime) {
                     oppList[i].lastChecked = millis()
                     // this needs to be fixed, the dimensions sent to the Algorithm are off
-                    oppList[i].generatedPath = runAI([rectWidth/2, rectWidth/2], [oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2])
+                    oppList[i].generatedPath = runAI([rectWidth/2, rectWidth/2], checkApproxNPCPos([oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2]))
                     
                 }
                 let targetVector
+                let enemyVector
 
                 //iterate through the path to see which tile is the closest to the NPC, if a path exists
                 if (oppList[i].generatedPath) {
+                    enemyVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2)
                     for (let j = 0;j<oppList[i].generatedPath.length - 1; j++) {
+                        // if the next tile, exists, let the algorithm continue
+                        if (oppList[i].generatedPath.indexOf(j + 1)) {
+                            enemyVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2)
+                            targetVector = createVector(oppList[i].generatedPath[j + 1]["pos"][0],oppList[i].generatedPath[j + 1]["pos"][1])
                         
-                        let enemyVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2)
-                        targetVector = createVector(oppList[i].generatedPath[j + 1]["pos"][0], oppList[i].generatedPath[j + 1]["pos"][1])
-                        
-                        enemyVector.lerp(targetVector, 0.000001)
-                        if (dist(enemyVector.x, enemyVector.y, targetVector.x, targetVector.y)) {
-                            oppList[i].generatedPath.splice(0, 1)
+                            enemyVector.lerp(targetVector, 0.1)
+                            if (dist(enemyVector.x, enemyVector.y, targetVector.x, targetVector.y) <= rectWidth/2) {
+                                oppList[i].generatedPath.splice(0, 1)
+                            }
+                            break
                         }
-                        break
+                       
                     }
                 }
                 //if a path don't exist, don't change anything
                 else {
-                    
+                    enemyVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2)
                     targetVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeX/2)
                 }
                 
 
                 
-                //measure from the center always
-                let enemyVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2)
-                enemyVector.lerp(targetVector, 0.1)
                 
                 oppList[i].x = enemyVector.x - oppList[i].sizeX/2
                 oppList[i].y = enemyVector.y - oppList[i].sizeY/2
