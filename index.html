@@ -26,7 +26,7 @@
         let windowWidth = window.innerWidth
         let windowHeight = window.innerHeight
 
-        let rectWidth = 10
+        let rectWidth = 180
         let constructionX = 0 + rectWidth / 2
         let constructionY = 0 + rectWidth / 2
 
@@ -61,6 +61,9 @@
         let repeatedSquares = 0
         let dangerZone = 0
 
+
+        let currentCharacterModel
+
         let wallTile
         let wallTileDown
         let wallTileRight
@@ -70,6 +73,7 @@
         //format for rooms: roomLength, room Width, we will multiply the dimensions by rectWidth to ensure uniformity in increments, additionally make sure all measurements are odd #s so that it can fit with hallway tiles
         let roomList = [[7 * rectWidth, 11 * rectWidth], [7*rectWidth, 7*rectWidth], [7*rectWidth, 11*rectWidth]]
         let trueRoomList = []
+        let mainCharacter
 
         //function that randomly generates loot based on room data, returns data containing loot info
         function generateLoot(posX, posY, sizeX, sizeY) {
@@ -92,6 +96,15 @@
         let npcScaleFactor = 0.75
         let newAlien
         function newEnemyNPC(modelType) {
+            if (modelType == alienModelList[0]) {
+                this.health = 100
+            }
+            else if (modelType == alienModelList[1]) {
+                this.health = 150
+            }
+            else if (modelType == alienModelList[2]) {
+                this.health = 200
+            }
             this.sizeX = rectWidth * npcScaleFactor 
             this.sizeY = rectWidth * npcScaleFactor 
             let chosenSquare = squareLog[Math.floor(random(0, squareLog.length))]
@@ -99,11 +112,28 @@
             this.x = chosenSquare[0] - this.sizeX/2
             this.y = chosenSquare[1] - this.sizeY/2
             this.model = modelType
-            this.iterationTime = 5000
+            this.iterationTime = 500
             this.lastChecked = millis()
             this.generatedPath = runAI([rectWidth/2, rectWidth/2], [this.x + this.sizeX/2, this.y + this.sizeY/2])
             console.log("THE SAYING IS: ", ArrayIncludes(squareLog, [this.x + this.sizeX/2, this.y + this.sizeY/2]))
         }
+
+        function player() {
+            this.sizeX = rectWidth * npcScaleFactor 
+            this.sizeY = rectWidth * npcScaleFactor 
+            let chosenSquare = [squareLog[0][0], squareLog[0][1]]
+            // position the enemy accordingly
+            this.x = chosenSquare[0] - this.sizeX/2
+            this.y = chosenSquare[1] - this.sizeY/2
+            this.ammo1 = 30
+            this.ammo2 = 30
+            this.ammo3 = 30
+            this.currentWeapon = 0
+            this.inventory = [0]
+            this.generatedPath = runAI([rectWidth/2, rectWidth/2], [this.x + this.sizeX/2, this.y + this.sizeY/2])
+            console.log("THE SAYING IS: ", ArrayIncludes(squareLog, [this.x + this.sizeX/2, this.y + this.sizeY/2]))
+        }
+
 
         //this function will help to see if there are any squares in the corner, (we don't want squares to clump up)
         function squareChecker(constructX, constructY, table) {
@@ -199,6 +229,7 @@
         }
 
      
+        
 
         //searched array is the array we are looking for
         function ArrayIncludes(array, searchedValue) {
@@ -210,6 +241,7 @@
             return false
         }
 
+
         function ArrayCompare(array1, array2) {
             for (let i=0;i<array1.length;i++) {
                 if (array1[i] != array2[i]){
@@ -219,6 +251,7 @@
             return true
         }
 
+    
         function ArrayIncludesTwoThree(array, searchedValue) {
             for (i=0;i<array.length; i++){
                 if (array[i][1] == searchedValue[1] && array[i][2] == searchedValue[2]) {
@@ -296,6 +329,9 @@
             }
         }
 
+
+        
+
         // first is target node, second is current node
         function calculateHCostToTarget(targetPos, currentPos) {
             return Math.abs(currentPos[0] - targetPos[0]) + Math.abs(currentPos[1] - targetPos[1])
@@ -305,6 +341,7 @@
         let floorTile
         let alienModelList = []
         let characterModelList = []
+        let characterModelListRight = []
         function preload() {
             floorTile = loadImage("floorTile.png")
             wallTile = loadImage("wallTile.png")
@@ -313,21 +350,33 @@
             wallTileRight = loadImage("wallTileRight.png")
             wallTileRightCorner = loadImage("wallTileRightCorner.png")
             wallTileLeftCorner = loadImage("wallTileLeftCorner.png")
+
+            //loot
             LootTypeList.push(loadImage("Medkit.png"))
+            LootTypeList.push(loadImage("AmmoArt/Ammo1.png"))
+            LootTypeList.push(loadImage("AmmoArt/Ammo2.png"))
+            LootTypeList.push(loadImage("AmmoArt/Ammo3.png"))
             
+            //aliens
             alienModelList.push(loadImage("AlienArt/ClassicAlien.png"))
             alienModelList.push(loadImage("AlienArt/CreepyAlien.png"))
             alienModelList.push(loadImage("AlienArt/CuddlyAlien.png"))
 
+            //main character
             characterModelList.push(loadImage("CharacterArt/MainCharacter1.png"))
             characterModelList.push(loadImage("CharacterArt/MainCharacter2.png"))
             characterModelList.push(loadImage("CharacterArt/MainCharacter3.png"))
+
+            characterModelListRight.push(loadImage("CharacterArt/MainCharacter1Right.png"))
+            characterModelListRight.push(loadImage("CharacterArt/MainCharacter2Right.png"))
+            characterModelListRight.push(loadImage("CharacterArt/MainCharacter3Right.png"))
 
         }
         let finalX
         let finalY
         function setup() {
             npcCount = Math.floor(random(2, 3))
+            
             
             createCanvas(windowWidth, windowHeight)
             rectMode(CENTER)
@@ -725,6 +774,52 @@
                     let enemy = new newEnemyNPC(alienModelList[0])
                     oppList.push(enemy)
                 }
+
+                //put everything in the middle of the screen
+                for (let i=0; i<squareLog.length; i++) {
+                    squareLog[i][0] += (window.innerWidth/2 - rectWidth)
+                    squareLog[i][1] += (window.innerHeight/2 - rectWidth)
+                }
+                for (let j=0; j< trueRoomList.length; j++) {
+                    trueRoomList[j][0] += (window.innerWidth/2 - rectWidth)
+                    trueRoomList[j][1] += (window.innerHeight/2 - rectWidth)
+                }
+                for (let i=0; i<borderLog.length; i++) {
+                    borderLog[i][0] += (window.innerWidth/2 - rectWidth)
+                    borderLog[i][1] += (window.innerHeight/2 - rectWidth)
+                }
+                for (let i=0; i<wallLog.length; i++) {
+                    wallLog[i][1] += (window.innerWidth/2 - rectWidth)
+                    wallLog[i][2] += (window.innerHeight/2 - rectWidth)
+                }
+                for (let i=0; i<lootLog.length; i++) {
+                    lootLog[i].x += (window.innerWidth/2 - rectWidth)
+                    lootLog[i].y += (window.innerHeight/2 - rectWidth)
+                }
+                for (let enemy of oppList) {
+                    //change position of enemy
+                    enemy.x += (window.innerWidth/2 - rectWidth)
+                    enemy.y += (window.innerHeight/2 - rectWidth)
+                    if (enemy.generatedPath) {
+                        for (let generationTile of enemy.generatedPath) {
+                        //adjust the ai path
+                        generationTile["pos"][0] += (window.innerWidth/2 - rectWidth)
+                        generationTile["pos"][1] += (window.innerHeight/2 - rectWidth)
+                    }
+                    }
+                    
+                }
+                positionX += cameraSpeed
+                mainCharacter = new player()
+                if (mainCharacter.currentWeapon == 0) {
+                    currentCharacterModel = characterModelListRight[0]
+                }
+                if (mainCharacter.currentWeapon == 1) {
+                    currentCharacterModel = characterModelListRight[1]
+                }
+                if (mainCharacter.currentWeapon == 2) {
+                    currentCharacterModel = characterModelListRight[2]
+                }
             
         }
         function runAI(startingPos, targetPos) {
@@ -740,12 +835,14 @@
                 openTiles.push(startingNode)
                 let finishedPathCompletion = false
                 let lastMiliCheck = millis()
+                
                 while (openTiles.length != 0 && finishedPathCompletion == false) {  
                     let lowestIndex = 0
                     //if the open list is greater than 20K, it's time to stop
                     if (closedTiles.length >= 7000) {
                         break
                     }
+                    
                     //look at horizontal and vertical tiles to determine score
                     for (let i=0;i<openTiles.length; i++) {
                         //compare and see until we get the lowest possible f cost
@@ -757,7 +854,6 @@
                     if (ArrayCompare(goalNode["pos"], openTiles[lowestIndex]["pos"]) == true) {
                         generatedPath.push(openTiles[lowestIndex])
                         let incrementer = openTiles[lowestIndex]
-                       
                         while (finishedPathCompletion == false) {
                             if (Object.keys(incrementer).length == 4) {
                                 generatedPath.push(incrementer["parent"])
@@ -941,27 +1037,112 @@
         function checkApproxNPCPos(npcPos) {
             for (let square of squareLog) {
                 if (collideRectRect(npcPos[0], npcPos[1], rectWidth * npcScaleFactor, rectWidth * npcScaleFactor, square[0], square[1], rectWidth, rectWidth) == true) {
-                    return square
+                    return [square[0], square[1]]
                 }
             }
 
         }
 
+        function createBullet(playerPos, mousePos) {
+            this.target = mousePos
+            this.x = playerPos[0]
+            this.y = playerPos[1] - npcScaleFactor * rectWidth/5
+            let xDisplacement = mousePos[0] - playerPos[0]
+            let yDisplacement = mousePos[1] - playerPos[1]
+            let distance = dist(playerPos[0], playerPos[1], mousePos[0], mousePos[1])
+            this.speedX = xDisplacement/distance * 20
+            this.speedY = yDisplacement/distance * 20
+        }
+
+        let interpolFactor = 0.1
+        let playerBulletList = []
+        function mouseClicked() {
+            if (mainCharacter.currentWeapon == 0 && mainCharacter.ammo1 > 0){
+                mainCharacter.ammo1 -= 1
+                let createdBullet = new createBullet([mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2], [mouseX, mouseY])
+                createdBullet = playerBulletList.push(createdBullet)
+            }
+        }
+
+        function checkBulletWallCollision(bulletPos) {
+            for (let wall of borderLog) {
+                let collided = collideRectRect(wall[0] - rectWidth/2, wall[1] - rectWidth/2, rectWidth, rectWidth, bulletPos[0], bulletPos[1], 10, 5)
+                if (collided == true) {
+                    return true
+                }
+            }
+            return false
+        }
+
+        function keyPressed() {
+            
+        }
+
+        
+
+            
         function draw() {
             
+            
+
             clear()
             rectMode(CORNER)
             background(70, 70, 70)
             
             document.getElementsByTagName("h1")[0].innerHTML = "X "+ mouseX + "Y "+ mouseY
 
+
             fill(140, 140, 140)
             rect(positionX, positionY, rightLimit/2, lowerLimit)
 
+            let leftLock = false
+            let rightLock = false
+            let downLock = false
+            let upLock = false
+            
+            
+
+            //check to see if player collided with any wall
+            for (let wall of wallLog) {
+                if (wall[0] == wallTile) {
+                    if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] - rectWidth/2 + rectWidth/10, wall[2] + rectWidth/2 - rectWidth/4, rectWidth - rectWidth/10, rectWidth/5) == true) {
+                        upLock = true
+                    }
+                }
+                else if (wall[0] == wallTileLeft) {
+                    if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] + rectWidth/4 , wall[2] - rectWidth/2 + rectWidth/10, rectWidth/5, rectWidth - rectWidth/10) == true) {
+                        leftLock = true
+                    }
+                }
+                else if (wall[0] == wallTileRight) {
+                    if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] - rectWidth/2 , wall[2] - rectWidth/2 + rectWidth/10, rectWidth/5, rectWidth - rectWidth/10) == true) {
+                        rightLock = true
+                    }
+                }
+                else if (wall[0] == wallTileDown) {
+                    if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] - rectWidth/2 + rectWidth/10, wall[2] - rectWidth/2, rectWidth - rectWidth/10, rectWidth/5) == true) {
+                        downLock = true
+                    }
+                }
+                
+                else if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] - rectWidth/2, wall[2] - rectWidth/2, rectWidth, rectWidth) == true) {
+                    if (wall[0] == wallTileLeft) {
+                        leftLock = true
+                    } 
+                    if (wall[0] == wallTileRight) {
+                        rightLock = true
+                    } 
+                    if (wall[0] == wallTileDown) {
+                        downLock = true
+                    } 
+                    rect(wall[1] - rectWidth/2, wall[2] - rectWidth/2, rectWidth, rectWidth)
+                }
+            }
             rectMode(CENTER)
+            console.log(upLock)
 
             //when player moves left, move the squares right
-            if (keyIsDown(65) == true) {
+            if (keyIsDown(65) == true && leftLock == false) {
                 for (let i=0; i<squareLog.length; i++) {
                     squareLog[i][0] += cameraSpeed
                 }
@@ -977,10 +1158,35 @@
                 for (let i=0; i<lootLog.length; i++) {
                     lootLog[i].x += cameraSpeed
                 }
+                for (let enemy of oppList) {
+                    //change position of enemy
+                    enemy.x += cameraSpeed
+                    if (enemy.generatedPath) {
+                        for (let generationTile of enemy.generatedPath) {
+                        //adjust the ai path
+                        generationTile["pos"][0] += cameraSpeed
+                    }
+                    }
+                    
+                }
+                for (let bullet of playerBulletList) {
+                    bullet.x += cameraSpeed
+                }
+                //change orientation of player if they move in the opposite direction
+                if (mainCharacter.currentWeapon == 0) {
+                    currentCharacterModel = characterModelList[0]
+                }
+                if (mainCharacter.currentWeapon == 1) {
+                    currentCharacterModel = characterModelList[1]
+                }
+                if (mainCharacter.currentWeapon == 2) {
+                    currentCharacterModel = characterModelList[2]
+                }
+                
                 positionX += cameraSpeed
             }
             //when player moves right, move the squares left
-            if (keyIsDown(68) == true) {
+            if (keyIsDown(68) == true && rightLock == false) {
                 for (let i=0; i<squareLog.length; i++) {
                     squareLog[i][0] -= cameraSpeed
                 }
@@ -996,10 +1202,34 @@
                 for (let i=0; i<lootLog.length; i++) {
                     lootLog[i].x -= cameraSpeed
                 }
+                for (let enemy of oppList) {
+                    //change position of enemy
+                    enemy.x -= cameraSpeed
+                    if (enemy.generatedPath) {
+                        for (let generationTile of enemy.generatedPath) {
+                        //adjust the ai path
+                        generationTile["pos"][0] -= cameraSpeed
+                    }
+                    }
+                }
+                
+                //change orientation of player if they move in the opposite direction
+                if (mainCharacter.currentWeapon == 0) {
+                    currentCharacterModel = characterModelListRight[0]
+                }
+                if (mainCharacter.currentWeapon == 1) {
+                    currentCharacterModel = characterModelListRight[1]
+                }
+                if (mainCharacter.currentWeapon == 2) {
+                    currentCharacterModel = characterModelListRight[2]
+                }
+                for (let bullet of playerBulletList) {
+                    bullet.x -= cameraSpeed
+                }
                 positionX -= cameraSpeed
             }
             //when player moves up, move the squares down
-            if (keyIsDown(87) == true) {
+            if (keyIsDown(87) == true && upLock == false) {
                 for (let i=0; i<squareLog.length; i++) {
                     squareLog[i][1] += cameraSpeed
                 }
@@ -1015,10 +1245,24 @@
                 for (let i=0; i<lootLog.length; i++) {
                     lootLog[i].y += cameraSpeed
                 }
+                for (let enemy of oppList) {
+                    //change position of enemy
+                    enemy.y += cameraSpeed
+                    if (enemy.generatedPath) {
+                        for (let generationTile of enemy.generatedPath) {
+                        //adjust the ai path
+                        generationTile["pos"][1] += cameraSpeed
+                    }
+                    }
+                    
+                }
+                for (let bullet of playerBulletList) {
+                    bullet.y += cameraSpeed
+                }
                 positionY += cameraSpeed
             }
             //when the players moves down, moves the squares up
-            if (keyIsDown(83) == true) {
+            if (keyIsDown(83) == true && downLock == false) {
                 for (let i=0; i<squareLog.length; i++) {
                     squareLog[i][1] -= cameraSpeed
                 }
@@ -1034,8 +1278,23 @@
                 for (let i=0; i<lootLog.length; i++) {
                     lootLog[i].y -= cameraSpeed
                 }
+                for (let enemy of oppList) {
+                    //change position of enemy
+                    enemy.y -= cameraSpeed
+                    if (enemy.generatedPath) {
+                        for (let generationTile of enemy.generatedPath) {
+                        //adjust the ai path
+                        generationTile["pos"][1] -= cameraSpeed
+                    }
+                    }
+                    
+                }
+                for (let bullet of playerBulletList) {
+                    bullet.y -= cameraSpeed
+                }
                 positionY -= cameraSpeed
             }
+            
             
 
             fill(0, 255, 0)
@@ -1083,12 +1342,14 @@
 
             imageMode(CORNER) 
             for (let i=0; i<oppList.length; i++) {
-                //update generated path every 5 mins
+                //update generated path every 5 secs
                 if (millis() - oppList[i].lastChecked > oppList[i].iterationTime) {
                     oppList[i].lastChecked = millis()
-                    // this needs to be fixed, the dimensions sent to the Algorithm are off
-                    oppList[i].generatedPath = runAI([rectWidth/2, rectWidth/2], checkApproxNPCPos([oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2]))
-                    
+                    let orgPosition = checkApproxNPCPos([mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2])
+                    // check to see if it's worth pursing the player
+                    // insert code here
+                    oppList[i].generatedPath = runAI(orgPosition, checkApproxNPCPos([oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2]))
+                
                 }
                 let targetVector
                 let enemyVector
@@ -1105,6 +1366,7 @@
                             enemyVector.lerp(targetVector, 0.1)
                             if (dist(enemyVector.x, enemyVector.y, targetVector.x, targetVector.y) <= rectWidth/2) {
                                 oppList[i].generatedPath.splice(0, 1)
+                                interpolFactor = 0.1
                             }
                             break
                         }
@@ -1124,6 +1386,23 @@
                 oppList[i].y = enemyVector.y - oppList[i].sizeY/2
                 image(oppList[i].model, oppList[i].x, oppList[i].y, oppList[i].sizeX, oppList[i].sizeY)
             }
+
+            for (let bullet of playerBulletList) {
+                bullet.x += bullet.speedX
+                bullet.y += bullet.speedY
+                rectMode(CENTER)
+                fill(255, 255, 0)
+                //check to see if bullet collided with a wall
+                if (checkBulletWallCollision([bullet.x, bullet.y]) == true) {
+                    //if it did collide take the bullet out of the system
+                    playerBulletList.splice(playerBulletList.indexOf(bullet), 1)
+                }
+                else {
+                    rect(bullet.x, bullet.y, 10, 5)
+                }
+                
+            }
+            image(currentCharacterModel, mainCharacter.x, mainCharacter.y, mainCharacter.sizeX, mainCharacter.sizeY)
         
         }
     </script>
