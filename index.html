@@ -26,7 +26,7 @@
         let windowWidth = window.innerWidth
         let windowHeight = window.innerHeight
 
-        let rectWidth = 180
+        let rectWidth = 25
         let constructionX = 0 + rectWidth / 2
         let constructionY = 0 + rectWidth / 2
 
@@ -114,8 +114,8 @@
             this.model = modelType
             this.iterationTime = 500
             this.lastChecked = millis()
+            this.movedToNextTile = true
             this.generatedPath = runAI([rectWidth/2, rectWidth/2], [this.x + this.sizeX/2, this.y + this.sizeY/2])
-            console.log("THE SAYING IS: ", ArrayIncludes(squareLog, [this.x + this.sizeX/2, this.y + this.sizeY/2]))
         }
 
         function player() {
@@ -131,7 +131,7 @@
             this.currentWeapon = 0
             this.inventory = [0]
             this.generatedPath = runAI([rectWidth/2, rectWidth/2], [this.x + this.sizeX/2, this.y + this.sizeY/2])
-            console.log("THE SAYING IS: ", ArrayIncludes(squareLog, [this.x + this.sizeX/2, this.y + this.sizeY/2]))
+
         }
 
 
@@ -768,7 +768,6 @@
                 
                 //npc ALGORITHM
 
-                console.log("NPC COUNT IS, ", npcCount)
                 //GENERATE NPCs
                 for (let i=0;i < npcCount; i++) {
                     let enemy = new newEnemyNPC(alienModelList[0])
@@ -1077,9 +1076,6 @@
         function keyPressed() {
             
         }
-
-        
-
             
         function draw() {
             
@@ -1139,7 +1135,6 @@
                 }
             }
             rectMode(CENTER)
-            console.log(upLock)
 
             //when player moves left, move the squares right
             if (keyIsDown(65) == true && leftLock == false) {
@@ -1353,20 +1348,28 @@
                 }
                 let targetVector
                 let enemyVector
-
+                
                 //iterate through the path to see which tile is the closest to the NPC, if a path exists
                 if (oppList[i].generatedPath) {
-                    enemyVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2)
                     for (let j = 0;j<oppList[i].generatedPath.length - 1; j++) {
                         // if the next tile, exists, let the algorithm continue
                         if (oppList[i].generatedPath.indexOf(j + 1)) {
-                            enemyVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2)
-                            targetVector = createVector(oppList[i].generatedPath[j + 1]["pos"][0],oppList[i].generatedPath[j + 1]["pos"][1])
-                        
-                            enemyVector.lerp(targetVector, 0.1)
-                            if (dist(enemyVector.x, enemyVector.y, targetVector.x, targetVector.y) <= rectWidth/2) {
+
+                            if (oppList[i].movedToNextTile == true) {
+                                oppList[i].enemyVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2)
+                                oppList[i].targetVector = createVector(oppList[i].generatedPath[j + 1]["pos"][0],oppList[i].generatedPath[j + 1]["pos"][1])
+
+                            }
+                            oppList[i].movedToNextTile = false
+                            let speedX = (oppList[i].targetVector.x - oppList[i].enemyVector.x)/dist(oppList[i].targetVector.x, oppList[i].targetVector.y, oppList[i].enemyVector.x, oppList[i].enemyVector.y) * 5
+                            let speedY = (oppList[i].targetVector.y - oppList[i].enemyVector.y)/dist(oppList[i].targetVector.x, oppList[i].targetVector.y, oppList[i].enemyVector.x, oppList[i].enemyVector.y) * 5  
+                            oppList[i].x += speedX
+                            oppList[i].y += speedY
+                            if (dist(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2, oppList[i].targetVector.x, oppList[i].targetVector.y) <= 1) {
                                 oppList[i].generatedPath.splice(0, 1)
+                                console.log("THIS RAN")
                                 interpolFactor = 0.1
+                                oppList[i].movedToNextTile = true
                             }
                             break
                         }
@@ -1375,15 +1378,13 @@
                 }
                 //if a path don't exist, don't change anything
                 else {
-                    enemyVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2)
-                    targetVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeX/2)
+                    oppList[i].enemyVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2)
+                    oppList[i].targetVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeX/2)
                 }
                 
 
                 
                 
-                oppList[i].x = enemyVector.x - oppList[i].sizeX/2
-                oppList[i].y = enemyVector.y - oppList[i].sizeY/2
                 image(oppList[i].model, oppList[i].x, oppList[i].y, oppList[i].sizeX, oppList[i].sizeY)
             }
 
