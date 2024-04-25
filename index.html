@@ -26,7 +26,7 @@
         let windowWidth = window.innerWidth
         let windowHeight = window.innerHeight
 
-        let rectWidth = 25
+        let rectWidth = 120
         let constructionX = 0 + rectWidth / 2
         let constructionY = 0 + rectWidth / 2
 
@@ -129,7 +129,7 @@
             this.ammo2 = 30
             this.ammo3 = 30
             this.currentWeapon = 0
-            this.inventory = [0]
+            this.inventory = [0, 1, 2]
             this.generatedPath = runAI([rectWidth/2, rectWidth/2], [this.x + this.sizeX/2, this.y + this.sizeY/2])
 
         }
@@ -1042,15 +1042,16 @@
 
         }
 
-        function createBullet(playerPos, mousePos) {
+        function createBullet(playerPos, mousePos, color) {
             this.target = mousePos
             this.x = playerPos[0]
             this.y = playerPos[1] - npcScaleFactor * rectWidth/5
             let xDisplacement = mousePos[0] - playerPos[0]
-            let yDisplacement = mousePos[1] - playerPos[1]
+            let yDisplacement = mousePos[1] - (playerPos[1] - npcScaleFactor * rectWidth/5)
             let distance = dist(playerPos[0], playerPos[1], mousePos[0], mousePos[1])
             this.speedX = xDisplacement/distance * 20
             this.speedY = yDisplacement/distance * 20
+            this.color = color
         }
 
         let interpolFactor = 0.1
@@ -1058,7 +1059,17 @@
         function mouseClicked() {
             if (mainCharacter.currentWeapon == 0 && mainCharacter.ammo1 > 0){
                 mainCharacter.ammo1 -= 1
-                let createdBullet = new createBullet([mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2], [mouseX, mouseY])
+                let createdBullet = new createBullet([mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2], [mouseX, mouseY], [255,255,0])
+                createdBullet = playerBulletList.push(createdBullet)
+            }
+            if (mainCharacter.currentWeapon == 1 && mainCharacter.ammo2 > 0){
+                mainCharacter.ammo2 -= 1
+                let createdBullet = new createBullet([mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2], [mouseX, mouseY], [100,240,255])
+                createdBullet = playerBulletList.push(createdBullet)
+            }
+            if (mainCharacter.currentWeapon == 2 && mainCharacter.ammo3 > 0){
+                mainCharacter.ammo3 -= 1
+                let createdBullet = new createBullet([mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2], [mouseX, mouseY], [255,0,0])
                 createdBullet = playerBulletList.push(createdBullet)
             }
         }
@@ -1074,7 +1085,41 @@
         }
 
         function keyPressed() {
-            
+            if (keyCode == 69) {
+                //check to see if next weapon exists, if not go back to weapon 0
+                if (mainCharacter.inventory.indexOf(mainCharacter.currentWeapon + 1) > -1) {
+                    mainCharacter.currentWeapon += 1
+                }
+                else {
+                    mainCharacter.currentWeapon = 0
+                }
+                if (mainCharacter.currentWeapon == 0) {
+                    currentCharacterModel = characterModelListRight[0]
+                }
+                if (mainCharacter.currentWeapon == 1) {
+                    currentCharacterModel = characterModelListRight[1]
+                }
+                if (mainCharacter.currentWeapon == 2) {
+                    currentCharacterModel = characterModelListRight[2]
+                }
+            }
+            if (keyCode == 81) {
+                if (mainCharacter.inventory.indexOf(mainCharacter.currentWeapon - 1) > -1) {
+                    mainCharacter.currentWeapon -= 1
+                }
+                else {
+                    mainCharacter.currentWeapon = mainCharacter.inventory.length - 1
+                }
+                if (mainCharacter.currentWeapon == 0) {
+                    currentCharacterModel = characterModelListRight[0]
+                }
+                if (mainCharacter.currentWeapon == 1) {
+                    currentCharacterModel = characterModelListRight[1]
+                }
+                if (mainCharacter.currentWeapon == 2) {
+                    currentCharacterModel = characterModelListRight[2]
+                }
+            }
         }
             
         function draw() {
@@ -1344,6 +1389,7 @@
                     // check to see if it's worth pursing the player
                     // insert code here
                     oppList[i].generatedPath = runAI(orgPosition, checkApproxNPCPos([oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2]))
+                    oppList[i].movedToNextTile = true
                 
                 }
                 let targetVector
@@ -1365,7 +1411,7 @@
                             let speedY = (oppList[i].targetVector.y - oppList[i].enemyVector.y)/dist(oppList[i].targetVector.x, oppList[i].targetVector.y, oppList[i].enemyVector.x, oppList[i].enemyVector.y) * 5  
                             oppList[i].x += speedX
                             oppList[i].y += speedY
-                            if (dist(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2, oppList[i].targetVector.x, oppList[i].targetVector.y) <= 1) {
+                            if (dist(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2, oppList[i].targetVector.x, oppList[i].targetVector.y) <= rectWidth/2) {
                                 oppList[i].generatedPath.splice(0, 1)
                                 console.log("THIS RAN")
                                 interpolFactor = 0.1
@@ -1392,7 +1438,7 @@
                 bullet.x += bullet.speedX
                 bullet.y += bullet.speedY
                 rectMode(CENTER)
-                fill(255, 255, 0)
+                fill(bullet.color[0], bullet.color[1], bullet.color[2])
                 //check to see if bullet collided with a wall
                 if (checkBulletWallCollision([bullet.x, bullet.y]) == true) {
                     //if it did collide take the bullet out of the system
