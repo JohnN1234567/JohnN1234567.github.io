@@ -8,6 +8,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"
         integrity="sha512-uaz5GpnQoE6t5echKlX8P52czvsIGgLPcvlzfvRubLZ1Hp8JemUDnbUiAahbVtPb+jUVrNETuXvAhDDF/N3M4w=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Jersey+15&display=swap" rel="stylesheet">
     
     <style>
         body {
@@ -15,12 +18,46 @@
             margin: 0;
             overflow: hidden;
         }
+        h1 {
+            position: absolute;
+            user-select: none;
+            color: white;
+            font-size: 8vh;
+            font-family: "Jersey 15", sans-serif;
+            font-weight: 400;
+            font-style: normal;
+        }
+        #bulletAmount {
+            top:0vh;
+            left: 90vw;
+        }
+        #healthAmount {
+            top:10vh;
+            left: 90vw;
+        }
+        #healthLabel {
+            top: 16vh;
+            left: 85vw;
+        }
+        #bulletLabel {
+            top: 7vh;
+        }
+        img {
+            position: absolute;
+            height: 6vh;
+            user-select: none;
+            left: 85vw;
+        }
     </style>
     <script defer src="https://unpkg.com/p5.collide2d"></script>
 </head>
 
 <body>
-    <h1></h1>
+    <h1 id="bulletAmount">30</h1>
+    <img id="bulletLabel">
+    <h1 id="healthAmount">100</h1>
+    <img id="healthLabel" src="health.png">
+    <h1 id="task">Task: Kill Aliens 0/7</h1>
     <script>
         
         let windowWidth = window.innerWidth
@@ -53,7 +90,7 @@
         let leftLimit = 0
         let rightLimit = 100 * rectWidth
 
-        let lootWidth = 0.75
+        let lootWidth = 0.5
 
         let backupConstructorX = 0 + rectWidth/2
         let backupConstructorY = 0 + rectWidth/2
@@ -97,13 +134,15 @@
         let newAlien
         function newEnemyNPC(modelType) {
             if (modelType == alienModelList[0]) {
-                this.health = 100
+                this.health = 30
+                this.fireTime = 750
             }
             else if (modelType == alienModelList[1]) {
-                this.health = 150
+                this.fireTime = 200
+                this.health = 50
             }
             else if (modelType == alienModelList[2]) {
-                this.health = 200
+                this.health = 100
             }
             this.sizeX = rectWidth * npcScaleFactor 
             this.sizeY = rectWidth * npcScaleFactor 
@@ -112,13 +151,16 @@
             this.x = chosenSquare[0] - this.sizeX/2
             this.y = chosenSquare[1] - this.sizeY/2
             this.model = modelType
-            this.iterationTime = 500
+            this.iterationTime = 1000
             this.lastChecked = millis()
             this.movedToNextTile = true
+            this.lastFired = 0
+            
             this.generatedPath = runAI([rectWidth/2, rectWidth/2], [this.x + this.sizeX/2, this.y + this.sizeY/2])
         }
 
         function player() {
+            this.health = 100
             this.sizeX = rectWidth * npcScaleFactor 
             this.sizeY = rectWidth * npcScaleFactor 
             let chosenSquare = [squareLog[0][0], squareLog[0][1]]
@@ -128,9 +170,13 @@
             this.ammo1 = 30
             this.ammo2 = 30
             this.ammo3 = 30
+            this.livesLost = 0
             this.currentWeapon = 0
             this.inventory = [0, 1, 2]
-            this.generatedPath = runAI([rectWidth/2, rectWidth/2], [this.x + this.sizeX/2, this.y + this.sizeY/2])
+            this.amountKilled = 0
+            this.levelOneCompleted = false
+            this.levelTwoCompleted = false
+            this.levelThreeCompleted = false
 
         }
 
@@ -334,7 +380,12 @@
 
         // first is target node, second is current node
         function calculateHCostToTarget(targetPos, currentPos) {
-            return Math.abs(currentPos[0] - targetPos[0]) + Math.abs(currentPos[1] - targetPos[1])
+            if (targetPos) {
+                return Math.abs(currentPos[0] - targetPos[0]) + Math.abs(currentPos[1] - targetPos[1])
+            }
+            else {
+                return 
+            }
         }
 
         let npcCount
@@ -342,6 +393,9 @@
         let alienModelList = []
         let characterModelList = []
         let characterModelListRight = []
+        let doorTileImage
+        let doorTileArrow
+        let explosion
         function preload() {
             floorTile = loadImage("floorTile.png")
             wallTile = loadImage("wallTile.png")
@@ -350,6 +404,8 @@
             wallTileRight = loadImage("wallTileRight.png")
             wallTileRightCorner = loadImage("wallTileRightCorner.png")
             wallTileLeftCorner = loadImage("wallTileLeftCorner.png")
+            doorTileImage = loadImage("doorTile.png")
+            doorTileArrow = loadImage("Arrow.png")
 
             //loot
             LootTypeList.push(loadImage("Medkit.png"))
@@ -359,8 +415,8 @@
             
             //aliens
             alienModelList.push(loadImage("AlienArt/ClassicAlien.png"))
-            alienModelList.push(loadImage("AlienArt/CreepyAlien.png"))
             alienModelList.push(loadImage("AlienArt/CuddlyAlien.png"))
+            alienModelList.push(loadImage("AlienArt/CreepyAlien.png"))
 
             //main character
             characterModelList.push(loadImage("CharacterArt/MainCharacter1.png"))
@@ -371,11 +427,18 @@
             characterModelListRight.push(loadImage("CharacterArt/MainCharacter2Right.png"))
             characterModelListRight.push(loadImage("CharacterArt/MainCharacter3Right.png"))
 
+            //special fx
+            explosion = loadImage("explosion.gif")
         }
         let finalX
         let finalY
+        //NO FILL RAWLY IN DRAW
+        let positionX = -3 * rectWidth
+        let positionY = -3 * rectWidth
+        let doorTile = []
+
         function setup() {
-            npcCount = Math.floor(random(2, 3))
+            npcCount = Math.floor(random(10, 20))
             
             
             createCanvas(windowWidth, windowHeight)
@@ -747,7 +810,9 @@
 
                 for (let i=0;i<wallLog.length;  i++) {
                     if (amountOfWalls == indexOfDoor && wallLog[i][0] == wallTile && wallLog[i].length == 3) {
-                        wallLog.splice(i, 1)
+                        doorTile.x = wallLog[i][1]
+                        doorTile.y = wallLog[i][2]
+                        break
                     }
 
                     if (wallLog[i][0] == wallTile && wallLog[i].length == 3){
@@ -759,7 +824,7 @@
                 //loot generation
                 for (let i=0; i<trueRoomList.length; i++) {
                     //determine the amount of loot
-                    let lootAmount = Math.floor(random(1, (trueRoomList[i][2] * trueRoomList[i][3])/(lootWidth * rectWidth)**2/15))
+                    let lootAmount = Math.floor(random(1, (trueRoomList[i][2] * trueRoomList[i][3])/(lootWidth * rectWidth)**2/30))
                     for (let j=0; j<lootAmount;j++) {
                         let loot = new generateLoot(trueRoomList[i][0],trueRoomList[i][1], trueRoomList[i][2], trueRoomList[i][3])
                         lootLog.push(loot)
@@ -770,11 +835,11 @@
 
                 //GENERATE NPCs
                 for (let i=0;i < npcCount; i++) {
-                    let enemy = new newEnemyNPC(alienModelList[0])
+                    let enemy = new newEnemyNPC(alienModelList[Math.floor(random(0, 2))])
                     oppList.push(enemy)
                 }
 
-                //put everything in the middle of the screen
+                //put everything in the middle of the screen, even the player
                 for (let i=0; i<squareLog.length; i++) {
                     squareLog[i][0] += (window.innerWidth/2 - rectWidth)
                     squareLog[i][1] += (window.innerHeight/2 - rectWidth)
@@ -808,8 +873,12 @@
                     }
                     
                 }
-                positionX += cameraSpeed
+                positionX += (window.innerWidth/2 - rectWidth)
+                positionY += (window.innerHeight/2 - rectWidth)
+                doorTile.x += (window.innerWidth/2 - rectWidth)
+                doorTile.y += (window.innerHeight/2 - rectWidth)
                 mainCharacter = new player()
+                mainCharacter.amountRequired = Math.floor(npcCount * 0.7) 
                 if (mainCharacter.currentWeapon == 0) {
                     currentCharacterModel = characterModelListRight[0]
                 }
@@ -831,6 +900,9 @@
                 startingNode["pos"] = startingPos
                 startingNode["g"] = 0
                 startingNode["h"] = calculateHCostToTarget(goalNode["pos"], startingNode["pos"])
+                if (!startingNode["h"]) {
+                    return
+                }
                 openTiles.push(startingNode)
                 let finishedPathCompletion = false
                 let lastMiliCheck = millis()
@@ -838,7 +910,7 @@
                 while (openTiles.length != 0 && finishedPathCompletion == false) {  
                     let lowestIndex = 0
                     //if the open list is greater than 20K, it's time to stop
-                    if (closedTiles.length >= 7000) {
+                    if (closedTiles.length >= 2000) {
                         break
                     }
                     
@@ -872,6 +944,9 @@
                     }
                     else {
                         //check the up tile as a neighbor
+                        if (closedTiles.length >= 3000) {
+                        break
+                        }   
                         let neighborPosition = [openTiles[lowestIndex]["pos"][0], openTiles[lowestIndex]["pos"][1] - rectWidth] 
                         let overlapDetected = false
                         let isClosed = false
@@ -1029,17 +1104,14 @@
         }
         let iterate = 0
         // the ranges: forward(0-10), turnLeft(10-15), turnRight(15-20), turnUp(20-25)
-        //NO FILL RAWLY IN DRAW
-        let positionX = -3 * rectWidth
-        let positionY = -3 * rectWidth
-
+        
         function checkApproxNPCPos(npcPos) {
             for (let square of squareLog) {
-                if (collideRectRect(npcPos[0], npcPos[1], rectWidth * npcScaleFactor, rectWidth * npcScaleFactor, square[0], square[1], rectWidth, rectWidth) == true) {
+                if (collideRectRect(npcPos[0], npcPos[1], rectWidth * npcScaleFactor, rectWidth * npcScaleFactor, square[0] - rectWidth/2, square[1] - rectWidth/2, rectWidth, rectWidth) == true) {
                     return [square[0], square[1]]
                 }
             }
-
+            return
         }
 
         function createBullet(playerPos, mousePos, color) {
@@ -1056,17 +1128,21 @@
 
         let interpolFactor = 0.1
         let playerBulletList = []
+        let enemyBulletList = []
         function mouseClicked() {
+            //fire weapon 0
             if (mainCharacter.currentWeapon == 0 && mainCharacter.ammo1 > 0){
                 mainCharacter.ammo1 -= 1
                 let createdBullet = new createBullet([mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2], [mouseX, mouseY], [255,255,0])
                 createdBullet = playerBulletList.push(createdBullet)
             }
+            //fire weapon 1
             if (mainCharacter.currentWeapon == 1 && mainCharacter.ammo2 > 0){
                 mainCharacter.ammo2 -= 1
                 let createdBullet = new createBullet([mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2], [mouseX, mouseY], [100,240,255])
                 createdBullet = playerBulletList.push(createdBullet)
             }
+            //fire weapon 2
             if (mainCharacter.currentWeapon == 2 && mainCharacter.ammo3 > 0){
                 mainCharacter.ammo3 -= 1
                 let createdBullet = new createBullet([mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2], [mouseX, mouseY], [255,0,0])
@@ -1121,16 +1197,74 @@
                 }
             }
         }
+
+        function checkAlienPlayerOpening(enemyObject) {
+            for (let border of borderLog) {
+                //we get a line that connects the center of the npc and the center of the player to see if there is an opening in any of the broders
+                let hit = collideLineRect(enemyObject.x + enemyObject.sizeX/2, enemyObject.y + enemyObject.sizeY/2, mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2, border[0] - rectWidth/2, border[1] - rectWidth/2, rectWidth, rectWidth)
+                if (hit == true) {
+                    return true
+                }
+            }
+            return false
+        }
             
+        let doorIterative = 0
         function draw() {
             
-            
+            //if player dies, make them respawn
+            if (mainCharacter.health <= 0) {
+                mainCharacter.health = 100
+                //reposition player
+                let offsetX = width/2 - rectWidth/2 - squareLog[0][0]
+                let offsetY = height/2 - rectWidth/2 - squareLog[0][1]
+                for (let i=0; i<squareLog.length; i++) {
+                    squareLog[i][0] += offsetX
+                    squareLog[i][1] += offsetY
+                }
+                for (let j=0; j< trueRoomList.length; j++) {
+                    trueRoomList[j][0] += offsetX
+                    trueRoomList[j][1] += offsetY
+                }
+                for (let i=0; i<borderLog.length; i++) {
+                    borderLog[i][0] += offsetX
+                    borderLog[i][1] += offsetY
+                }
+                for (let i=0; i<wallLog.length; i++) {
+                    wallLog[i][1] += offsetX
+                    wallLog[i][2] += offsetY
+                }
+                for (let i=0; i<lootLog.length; i++) {
+                    lootLog[i].x += offsetX
+                    lootLog[i].y += offsetY
+                }
+                for (let enemy of oppList) {
+                    //change position of enemy
+                    enemy.x += offsetX
+                    enemy.y += offsetY
+                    enemy.targetVector.x += offsetX
+                    enemy.targetVector.y += offsetY
+                    enemy.enemyVector.x += offsetX
+                    enemy.enemyVector.y += offsetY
+                    if (enemy.generatedPath) {
+                        for (let generationTile of enemy.generatedPath) {
+                        //adjust the ai path
+                        generationTile["pos"][0] += offsetX
+                        generationTile["pos"][1] += offsetY
+                    }
+                    }
+                    
+                }
+                positionX += offsetX
+                positionY += offsetY
+                doorTile.x += offsetX
+                doorTile.y +=offsetY
+            }
 
             clear()
             rectMode(CORNER)
             background(70, 70, 70)
             
-            document.getElementsByTagName("h1")[0].innerHTML = "X "+ mouseX + "Y "+ mouseY
 
 
             fill(140, 140, 140)
@@ -1140,28 +1274,31 @@
             let rightLock = false
             let downLock = false
             let upLock = false
-            
-            
 
-            //check to see if player collided with any wall
+
+            
             for (let wall of wallLog) {
                 if (wall[0] == wallTile) {
+                    rect(wall[1] - rectWidth/2 + rectWidth/10, wall[2] + rectWidth/2 - rectWidth/4, rectWidth - rectWidth/10, rectWidth/5)
                     if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] - rectWidth/2 + rectWidth/10, wall[2] + rectWidth/2 - rectWidth/4, rectWidth - rectWidth/10, rectWidth/5) == true) {
                         upLock = true
                     }
                 }
                 else if (wall[0] == wallTileLeft) {
-                    if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] + rectWidth/4 , wall[2] - rectWidth/2 + rectWidth/10, rectWidth/5, rectWidth - rectWidth/10) == true) {
+                    rect(wall[1] + rectWidth/4 , wall[2] - rectWidth/2 + rectWidth/10, rectWidth/5, rectWidth - rectWidth/2.5)
+                    if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] + rectWidth/4 , wall[2] - rectWidth/2 + rectWidth/10, rectWidth/5, rectWidth - rectWidth/2.5) == true) {
                         leftLock = true
                     }
                 }
                 else if (wall[0] == wallTileRight) {
-                    if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] - rectWidth/2 , wall[2] - rectWidth/2 + rectWidth/10, rectWidth/5, rectWidth - rectWidth/10) == true) {
+                    rect(wall[1] - rectWidth/2 , wall[2] - rectWidth/2 + rectWidth/10, rectWidth/5, rectWidth - rectWidth/2.5)
+                    if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] - rectWidth/2 , wall[2] - rectWidth/2 + rectWidth/10, rectWidth/5, rectWidth - rectWidth/2.5) == true) {
                         rightLock = true
                     }
                 }
                 else if (wall[0] == wallTileDown) {
-                    if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] - rectWidth/2 + rectWidth/10, wall[2] - rectWidth/2, rectWidth - rectWidth/10, rectWidth/5) == true) {
+                    rect(wall[1] - rectWidth/2 + rectWidth/10, wall[2] - rectWidth/2, rectWidth - rectWidth/5, rectWidth/5)
+                    if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] - rectWidth/2 + rectWidth/10, wall[2] - rectWidth/2, rectWidth - rectWidth/5, rectWidth/5) == true) {
                         downLock = true
                     }
                 }
@@ -1179,6 +1316,10 @@
                     rect(wall[1] - rectWidth/2, wall[2] - rectWidth/2, rectWidth, rectWidth)
                 }
             }
+            
+
+            
+          
             rectMode(CENTER)
 
             //when player moves left, move the squares right
@@ -1198,9 +1339,12 @@
                 for (let i=0; i<lootLog.length; i++) {
                     lootLog[i].x += cameraSpeed
                 }
+                doorTile.x += cameraSpeed
                 for (let enemy of oppList) {
                     //change position of enemy
                     enemy.x += cameraSpeed
+                    enemy.targetVector.x += cameraSpeed
+                    enemy.enemyVector.x += cameraSpeed
                     if (enemy.generatedPath) {
                         for (let generationTile of enemy.generatedPath) {
                         //adjust the ai path
@@ -1210,6 +1354,9 @@
                     
                 }
                 for (let bullet of playerBulletList) {
+                    bullet.x += cameraSpeed
+                }
+                for (let bullet of enemyBulletList) {
                     bullet.x += cameraSpeed
                 }
                 //change orientation of player if they move in the opposite direction
@@ -1242,9 +1389,12 @@
                 for (let i=0; i<lootLog.length; i++) {
                     lootLog[i].x -= cameraSpeed
                 }
+                doorTile.x -= cameraSpeed
                 for (let enemy of oppList) {
                     //change position of enemy
                     enemy.x -= cameraSpeed
+                    enemy.targetVector.x -= cameraSpeed
+                    enemy.enemyVector.x -= cameraSpeed
                     if (enemy.generatedPath) {
                         for (let generationTile of enemy.generatedPath) {
                         //adjust the ai path
@@ -1266,6 +1416,9 @@
                 for (let bullet of playerBulletList) {
                     bullet.x -= cameraSpeed
                 }
+                for (let bullet of enemyBulletList) {
+                    bullet.x -= cameraSpeed
+                }
                 positionX -= cameraSpeed
             }
             //when player moves up, move the squares down
@@ -1285,9 +1438,12 @@
                 for (let i=0; i<lootLog.length; i++) {
                     lootLog[i].y += cameraSpeed
                 }
+                doorTile.y += cameraSpeed
                 for (let enemy of oppList) {
                     //change position of enemy
                     enemy.y += cameraSpeed
+                    enemy.targetVector.y += cameraSpeed
+                    enemy.enemyVector.y += cameraSpeed
                     if (enemy.generatedPath) {
                         for (let generationTile of enemy.generatedPath) {
                         //adjust the ai path
@@ -1297,6 +1453,9 @@
                     
                 }
                 for (let bullet of playerBulletList) {
+                    bullet.y += cameraSpeed
+                }
+                for (let bullet of enemyBulletList) {
                     bullet.y += cameraSpeed
                 }
                 positionY += cameraSpeed
@@ -1318,9 +1477,12 @@
                 for (let i=0; i<lootLog.length; i++) {
                     lootLog[i].y -= cameraSpeed
                 }
+                doorTile.y -= cameraSpeed
                 for (let enemy of oppList) {
                     //change position of enemy
                     enemy.y -= cameraSpeed
+                    enemy.targetVector.y -= cameraSpeed
+                    enemy.enemyVector.y -= cameraSpeed
                     if (enemy.generatedPath) {
                         for (let generationTile of enemy.generatedPath) {
                         //adjust the ai path
@@ -1330,6 +1492,9 @@
                     
                 }
                 for (let bullet of playerBulletList) {
+                    bullet.y -= cameraSpeed
+                }
+                for (let bullet of enemyBulletList) {
                     bullet.y -= cameraSpeed
                 }
                 positionY -= cameraSpeed
@@ -1352,7 +1517,7 @@
             for (let i= 0; i <wallLog.length; i++) {
                 image(wallLog[i][0], wallLog[i][1], wallLog[i][2], rectWidth, rectWidth)
             }
-
+            image(doorTileImage, doorTile.x, doorTile.y, rectWidth, rectWidth)
             
 
 
@@ -1385,11 +1550,25 @@
                 //update generated path every 5 secs
                 if (millis() - oppList[i].lastChecked > oppList[i].iterationTime) {
                     oppList[i].lastChecked = millis()
-                    let orgPosition = checkApproxNPCPos([mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2])
-                    // check to see if it's worth pursing the player
-                    // insert code here
-                    oppList[i].generatedPath = runAI(orgPosition, checkApproxNPCPos([oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2]))
-                    oppList[i].movedToNextTile = true
+                    let orgPosition = checkApproxNPCPos([mainCharacter.x, mainCharacter.y])
+                    //fail safe: if the enemy has moved out of bounds, or if it cannot track the player take the enemy out of the game, 
+                    if (!orgPosition) {
+                        continue
+                    }
+                    //only generate a new path if within a reasonable distance from the player
+                    if (dist(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2, mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2) <= rectWidth * 7){
+                        oppList[i].generatedPath = runAI(orgPosition, checkApproxNPCPos([oppList[i].x, oppList[i].y]))
+                        oppList[i].movedToNextTile = true
+                    }
+                    // if alien goes too far from the world, put it back somewhere
+                    if (dist(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2, mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2) >= rectWidth * 40) {
+                        let newChosenSquare = squareLog[Math.floor(random(0, squareLog.length))]
+                        // position the enemy accordingly
+                        oppList[i].x = newChosenSquare[0] - oppList[i].sizeX/2
+                        oppList[i].y = newChosenSquare[1] - oppList[i].sizeY/2
+                    }
+                    console.log(dist(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2, mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2))
+                    
                 
                 }
                 let targetVector
@@ -1407,16 +1586,18 @@
 
                             }
                             oppList[i].movedToNextTile = false
+                            //determine the speed of the x and y axis of the alien so that it can reach its target
+
                             let speedX = (oppList[i].targetVector.x - oppList[i].enemyVector.x)/dist(oppList[i].targetVector.x, oppList[i].targetVector.y, oppList[i].enemyVector.x, oppList[i].enemyVector.y) * 5
-                            let speedY = (oppList[i].targetVector.y - oppList[i].enemyVector.y)/dist(oppList[i].targetVector.x, oppList[i].targetVector.y, oppList[i].enemyVector.x, oppList[i].enemyVector.y) * 5  
-                            oppList[i].x += speedX
-                            oppList[i].y += speedY
+                                let speedY = (oppList[i].targetVector.y - oppList[i].enemyVector.y)/dist(oppList[i].targetVector.x, oppList[i].targetVector.y, oppList[i].enemyVector.x, oppList[i].enemyVector.y) * 5  
+                                oppList[i].x += speedX
+                                oppList[i].y += speedY
                             if (dist(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2, oppList[i].targetVector.x, oppList[i].targetVector.y) <= rectWidth/2) {
                                 oppList[i].generatedPath.splice(0, 1)
-                                console.log("THIS RAN")
                                 interpolFactor = 0.1
                                 oppList[i].movedToNextTile = true
                             }
+
                             break
                         }
                        
@@ -1428,10 +1609,66 @@
                     oppList[i].targetVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeX/2)
                 }
                 
+                //make alien fire bullets
+                //make sure alien is not a stalker alien (they can't shoot) and they are not spamming bullets
+                if (oppList[i].modelType != alienModelList[2] && millis() - oppList[i].lastFired >= oppList[i].fireTime) {
+                    //make sure alien is in range of player, if they are create a bullet
+                    if (checkAlienPlayerOpening(oppList[i]) != true) {
+                        let bulletColor
+                        if (oppList[i].model == alienModelList[0]) {
+                            bulletColor = [255, 255, 0]
+                        }
+                        else {
+                            bulletColor = [100,240,255]
+                        }
+                        let enemyBullet = new createBullet([oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2], [mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2], bulletColor)
+                        oppList[i].lastFired = millis()
+                        enemyBulletList.push(enemyBullet)
+                    }
+                }
+
+                //fail safe, if enemy is NaN or it is far away, reassign it to a new spot
+                if (isNaN(oppList[i].x) == true || !checkApproxNPCPos([oppList[i].x, oppList[i].y])) {
+                    let newSelectSquare = squareLog[Math.floor(random(0, squareLog.length))]
+                    oppList[i].x = newSelectSquare[0]
+                    oppList[i].y = newSelectSquare[1]
+                }
 
                 
-                
                 image(oppList[i].model, oppList[i].x, oppList[i].y, oppList[i].sizeX, oppList[i].sizeY)
+            }
+
+            for (let bullet of enemyBulletList) {
+                bullet.x += bullet.speedX
+                bullet.y += bullet.speedY
+                rectMode(CENTER)
+                fill(bullet.color[0], bullet.color[1], bullet.color[2])
+                //check to see if bullet collided with a wall
+                if (checkBulletWallCollision([bullet.x, bullet.y]) == true) {
+                    //if it did collide take the bullet out of the system
+                    enemyBulletList.splice(enemyBulletList.indexOf(bullet), 1)
+                }
+                //check to see if it hit the player
+                else if (collideRectRect(mainCharacter.x + rectWidth/10, mainCharacter.y, mainCharacter.sizeX - rectWidth/5, mainCharacter.sizeY, bullet.x - 5, bullet.y - 2.5, 10, 5) == true) {
+                    //check to see what type of bullet it is
+                    //yellow bullets
+                    if (ArrayCompare([255, 255, 0], bullet.color) == true) {
+                        mainCharacter.health -= Math.floor(random(5, 10))
+                        mainCharacter.health = constrain(mainCharacter.health, 0, 100)
+                        console.log("CHARACTER HEALTH : ", mainCharacter.health)
+                    }
+                    else {//blue bullets
+                        mainCharacter.health -= Math.floor(random(10, 20))
+                        mainCharacter.health = constrain(mainCharacter.health, 0, 100)
+                        console.log("CHARACTER HEALTH : ", mainCharacter.health)
+                    }
+                    enemyBulletList.splice(enemyBulletList.indexOf(bullet), 1)
+                    console.log("THIS RAN")
+                }
+                else {
+                    rect(bullet.x, bullet.y, 10, 5)
+                }
+                
             }
 
             for (let bullet of playerBulletList) {
@@ -1443,14 +1680,98 @@
                 if (checkBulletWallCollision([bullet.x, bullet.y]) == true) {
                     //if it did collide take the bullet out of the system
                     playerBulletList.splice(playerBulletList.indexOf(bullet), 1)
+                    explosion.delay(3000)
+                    image(explosion, 0, 0, rectWidth, rectWidth)
                 }
                 else {
+                    for (let enemy of oppList) {
+                        //if bullet hit, remove the buller
+                        if (collideRectRect(enemy.x, enemy.y, enemy.sizeX, enemy.sizeY, bullet.x - 5, bullet.y - 2.5, 10, 5) == true) {
+                            console.log("THIS RAN 1000")
+                            //yellow bullets
+                            if (ArrayCompare([255, 255, 0], bullet.color) == true) {
+                                enemy.health -= Math.floor(random(5, 10))
+                            }//blue bullets
+                            else if (ArrayCompare([100,240,255], bullet.color) == true) {//blue bullets
+                                enemy.health -= Math.floor(random(10, 40))
+                                console.log("CHARACTER HEALTH : ", mainCharacter.health)
+                            }
+                            else { //red bullets
+                                enemy.health -= 100
+                                
+                            }
+
+                            //if enemy died, take the enemy out
+                            if (enemy.health <= 0) {
+                                oppList.splice(oppList.indexOf(enemy), 1)
+                                mainCharacter.amountKilled += 1
+                            }
+                            
+                            playerBulletList.splice(playerBulletList.indexOf(bullet), 1)
+                        }
+                    }
                     rect(bullet.x, bullet.y, 10, 5)
                 }
                 
             }
-            image(currentCharacterModel, mainCharacter.x, mainCharacter.y, mainCharacter.sizeX, mainCharacter.sizeY)
+
+            //check to see if player collected any loot
+            for (let loot of lootLog) {
+                let hit = collideRectRect(loot.x, loot.y, loot.dimensionX, loot.dimensionY, mainCharacter.x, mainCharacter.y, mainCharacter.sizeX, mainCharacter.sizeY)
+                if (hit == true) {
+                    //if player touched medkit
+                    if (loot.LootType == LootTypeList[0]) {
+                        mainCharacter.health += Math.floor(random(10,20))
+                        mainCharacter.health = constrain(mainCharacter.health, 0, 100)
+                    }
+                    //  if player touched ammo1
+                    if (loot.LootType == LootTypeList[1]) {
+                        mainCharacter.ammo1 += Math.floor(random(10,20))
+                    }
+                    //  if player touched ammo2
+                    if (loot.LootType == LootTypeList[2]) {
+                        mainCharacter.ammo2 += Math.floor(random(10,20))
+                    }
+                    //  if player touched ammo3
+                    if (loot.LootType == LootTypeList[3]) {
+                        mainCharacter.ammo3 += Math.floor(random(10,20))
+                    }
+                    lootLog.splice(lootLog.indexOf(loot), 1)
+                }
+            }
+
+
+            rectMode(CORNER)
+            //check to see if player collided with any wall
         
+            //check to see if player has reached/hit the door panel, if so send them to the next level
+            if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX, mainCharacter.sizeY, doorTile.x - rectWidth/2, doorTile.y - rectWidth/2, rectWidth, rectWidth/1.1) == true && keyIsDown(87) == true) {
+                
+                doorIterative += 1
+                if (doorIterative >= 30) {
+                    console.log("MOVE TO NEXT LEVEL")
+                }
+            }
+
+            image(currentCharacterModel, mainCharacter.x, mainCharacter.y, mainCharacter.sizeX, mainCharacter.sizeY)
+
+            //display bullet ammount for current gun
+            if (mainCharacter.currentWeapon == 0) {
+                document.getElementById("bulletAmount").innerText = mainCharacter.ammo1
+                document.getElementById("bulletLabel").setAttribute("src", "AmmoArt/Ammo1.png")
+            }
+            else if (mainCharacter.currentWeapon == 1) {
+                document.getElementById("bulletAmount").innerText = mainCharacter.ammo2
+                document.getElementById("bulletLabel").setAttribute("src", "AmmoArt/Ammo2.png")
+            }
+            else if (mainCharacter.currentWeapon == 2) {
+                document.getElementById("bulletAmount").innerText = mainCharacter.ammo3
+                document.getElementById("bulletLabel").setAttribute("src", "AmmoArt/Ammo3.png")
+            }
+            //display health amount
+            document.getElementById("healthAmount").innerText = mainCharacter.health
+            //dispaly how many more enemys to kill
+            document.getElementById("task").innerText = "Task: Kill Aliens " + mainCharacter.amountKilled + "/" + mainCharacter.amountRequired
         }
     </script>
 </body>
