@@ -1,0 +1,1916 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"
+        integrity="sha512-uaz5GpnQoE6t5echKlX8P52czvsIGgLPcvlzfvRubLZ1Hp8JemUDnbUiAahbVtPb+jUVrNETuXvAhDDF/N3M4w=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.js" integrity="sha512-TU9AWtV5uUZPX8dbBAH8NQF1tSdigPRRT82vllAQ1Ke28puiqLA6ZVKxtUGlgrH6yWFnkKy+sE6luNEGH9ar0A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Jersey+15&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+        }
+        h1 {
+            position: absolute;
+            user-select: none;
+            color: white;
+            font-size: 8vh;
+            font-family: "Jersey 15", sans-serif;
+            font-weight: 400;
+            font-style: normal;
+        }
+        #bulletAmount {
+            top:0vh;
+            left: 90vw;
+        }
+        #healthAmount {
+            top:10vh;
+            left: 90vw;
+        }
+        #healthLabel {
+            top: 16vh;
+            left: 85vw;
+            height: 6vh;
+        }
+        #bulletLabel {
+            top: 7vh;
+            height: 6vh;
+            left: 85vw;
+        }
+        img {
+            position: absolute;
+            user-select: none;
+            z-index: 5;
+        }
+    </style>
+    <script defer src="https://unpkg.com/p5.collide2d"></script>
+
+</head>
+
+<body>
+    <h1 id="bulletAmount">30</h1>
+    <img id="bulletLabel">
+    <h1 id="healthAmount">100</h1>
+    <img id="healthLabel" src="health.png">
+    <h1 id="task">Task: Kill Aliens 0/7</h1>
+    <script>
+        
+        let windowWidth = window.innerWidth
+        let windowHeight = window.innerHeight
+
+        let rectWidth = 120
+        let constructionX = 0 + rectWidth / 2
+        let constructionY = 0 + rectWidth / 2
+
+        let constructionType = 0
+        let iteration = 0
+        
+        
+
+
+        let newConstructorX = 0 + rectWidth / 2
+        let newConstructorY = 0 + rectWidth / 2
+
+        let forwardType = "downOrient"
+
+        let squareLog = []
+        let borderLog = []
+        let wallLog = []
+        let lootLog = []
+        let cameraSpeed = 10
+
+        //formula to determine # of squares for a limit 1 square = 25 px squareLimit * 25 = realLimit
+        let upperLimit = 0
+        let lowerLimit = 50 * rectWidth
+        let leftLimit = 0
+        let rightLimit = 100 * rectWidth
+
+        let lootWidth = 0.5
+
+        let backupConstructorX = 0 + rectWidth/2
+        let backupConstructorY = 0 + rectWidth/2
+
+        let repeatedSquares = 0
+        let dangerZone = 0
+
+
+        let currentCharacterModel
+
+        let wallTile = "wallTile"
+        let wallTileDown = "wallTileDown"
+        let wallTileRight = "wallTileRight"
+        let wallTileLeft = "wallTileLeft"
+        let wallTileRightCorner = "wallTileRightCorner"
+        let wallTileLeftCorner = "wallTileLeftCorner"
+        let wallTileNames = [wallTile, wallTileDown, wallTileRight, wallTileLeft, wallTileRightCorner, wallTileLeftCorner]
+        let wallTileList = []
+        let LootTypeList = []
+        let lootTypeName = ["Medkit", "PistolAmmo", "SubAmmo", "HE"]
+        let oppList = []
+        //format for rooms: roomLength, room Width, we will multiply the dimensions by rectWidth to ensure uniformity in increments, additionally make sure all measurements are odd #s so that it can fit with hallway tiles
+        let roomList = [[7 * rectWidth, 11 * rectWidth], [7*rectWidth, 7*rectWidth], [7*rectWidth, 11*rectWidth]]
+        let trueRoomList = []
+        let mainCharacter
+
+        //function that randomly generates loot based on room data, returns data containing loot info
+        function generateLoot(posX, posY, sizeX, sizeY, bool) {
+            //generate a random position for the loot
+            let generateComplete = false
+            this.x
+            this.y
+            this.dimensionX = (lootWidth * rectWidth)
+            this.dimensionY = (lootWidth * rectWidth)
+            if (bool) {
+                this.x = posX
+                this.y = posY
+            }
+            else {
+                //we will make adjustments to position X to make sure loot doesn't generate in the walls
+                this.x = random(posX, posX + sizeX - (lootWidth * rectWidth))
+                this.y = random(posY, posY + sizeY - (lootWidth * rectWidth) )
+            }
+                
+
+                
+            
+                this.LootType = lootTypeName[Math.floor(random(0, lootTypeName.length))]
+    
+        }
+
+        let npcScaleFactor = 0.75
+        let newAlien
+        function newEnemyNPC(modelType) {
+            if (modelType == alienModelList[0]) {
+                this.health = 30
+                this.fireTime = 750
+            }
+            else if (modelType == alienModelList[1]) {
+                this.fireTime = 200
+                this.health = 50
+            }
+            else if (modelType == alienModelList[2]) {
+                this.health = 100
+            }
+            this.sizeX = rectWidth * npcScaleFactor 
+            this.sizeY = rectWidth * npcScaleFactor 
+            let chosenSquare = squareLog[Math.floor(random(0, squareLog.length))]
+            // position the enemy accordingly
+            this.x = chosenSquare[0] - this.sizeX/2
+            this.y = chosenSquare[1] - this.sizeY/2
+            this.model = modelType
+            this.iterationTime = 1000
+            this.lastChecked = millis()
+            this.movedToNextTile = true
+            this.lastFired = 0
+            
+            this.generatedPath
+        }
+
+        function player() {
+            this.health = 100
+            this.sizeX = rectWidth * npcScaleFactor 
+            this.sizeY = rectWidth * npcScaleFactor 
+            let chosenSquare = [squareLog[0][0], squareLog[0][1]]
+            // position the enemy accordingly
+            this.x = chosenSquare[0] - this.sizeX/2
+            this.y = chosenSquare[1] - this.sizeY/2
+            this.ammo1 = 30
+            this.ammo2 = 30
+            this.ammo3 = 30
+            this.livesLost = 0
+            this.currentWeapon = 0
+            this.inventory = [0, 1, 2]
+            this.amountKilled = 0
+            this.levelOneCompleted = false
+            this.levelTwoCompleted = false
+            this.levelThreeCompleted = false
+            this.levelOneTrueCompleted = false
+            this.levelTwoTrueCompleted = false
+            this.levelThreeTrueCompleted = false
+
+
+
+        }
+
+
+        //this function will help to see if there are any squares in the corner, (we don't want squares to clump up)
+        function squareChecker(constructX, constructY, table) {
+            let touched = 0
+            if (constructX < leftLimit || constructX > rightLimit) {
+                touched += 1000
+            }
+            if (constructY < upperLimit || constructY > lowerLimit) {
+                touched += 1000
+            }
+            for (i = 0; i < table.length; i++) {
+                //check to see if a tile is already there
+                if (table[i][0] == constructX && table[i][1] == constructY) {
+                    touched += 1000
+                }
+
+                constructCheckerX = constructX - rectWidth
+                constructCheckerY = constructY - rectWidth
+
+                if (constructCheckerX == table[i][0] && constructCheckerY == table[i][1]) {
+                    touched += 1
+                }
+
+                constructCheckerX = constructX + rectWidth
+                constructCheckerY = constructY - rectWidth
+
+                if (constructCheckerX == table[i][0] && constructCheckerY == table[i][1]) {
+                    touched += 1
+                }
+
+                constructCheckerX = constructX - rectWidth
+                constructCheckerY = constructY + rectWidth
+
+                if (constructCheckerX == table[i][0] && constructCheckerY == table[i][1]) {
+                    touched += 1
+                }
+
+                constructCheckerX = constructX - rectWidth
+                constructCheckerY = constructY - rectWidth
+
+                if (constructCheckerX == table[i][0] && constructCheckerY == table[i][1]) {
+                    touched += 1
+                }
+            }
+
+            return touched
+        }
+
+        function checkRepeated(x, y) {
+            for (i=0;i < squareLog.length; i++) {
+                if (squareLog[i][0] == x && squareLog[i][1]) {
+                    repeatedSquares += 1
+                    break
+                }
+                
+            }
+        }
+
+        //check if the room overlaps with any of the hallways
+        function checkRoomSpace(room, roomIndex, squareLog) {
+            for (let i=0; i<squareLog.length; i++) {
+                //cheeck to see if room dimensions overlap with ALL square tiles of the hallways (add padding so that the walls of the room are accounted for)
+                if (collideRectRect(room[0] - rectWidth, room[1] - rectWidth, roomList[roomIndex][0] + 2*rectWidth, roomList[roomIndex][1] + 2*rectWidth, squareLog[i][0] - rectWidth/2, squareLog[i][1] - rectWidth/2, rectWidth, rectWidth) == true) {
+                    return false
+                }
+            }
+            return true
+        }
+
+        //check to see if any rooms overlap with each other
+        function checkRoomOverlap(room, roomIndex, dummyRoomList, realRoomList) {
+            for (let i=0; i<realRoomList.length; i++) {
+                //cheeck to see if room dimensions don't overlap with ALL of the rooms (add padding so that the walls of the room are accounted for)
+                if (collideRectRect(room[0] - rectWidth, room[1] - rectWidth, dummyRoomList[roomIndex][0] + rectWidth * 2, dummyRoomList[roomIndex][1] + rectWidth * 2, realRoomList[i][0], realRoomList[i][1], realRoomList[i][2], realRoomList[i][3]) == true) {
+                    return false
+                }
+            }
+            return true
+        }
+
+        //check if a tile (border) overlaps with any rooms
+        function checkRoomBorderOverlap(tile, trueRoomList) {
+            for (let i=0;i<trueRoomList.length;i++) {
+                //adjust from center orientation to corner orientation
+                if (collideRectRect(tile[0] - rectWidth/2, tile[1] - rectWidth/2, rectWidth, rectWidth, trueRoomList[i][0], trueRoomList[i][1], roomList[i][0], roomList[i][1]) == true ){
+                    //if there is a collision detected among the tile and the room, return true to say that there should not be a border tile in that position
+                    return true
+                }
+            }
+
+            return false
+
+        }
+
+     
+        
+
+        //searched array is the array we are looking for
+        function ArrayIncludes(array, searchedValue) {
+            for (i=0;i<array.length; i++){
+                if (array[i][0] == searchedValue[0] && array[i][1] == searchedValue[1]) {
+                    return true
+                }
+            }
+            return false
+        }
+
+
+        function ArrayCompare(array1, array2) {
+            for (let i=0;i<array1.length;i++) {
+                if (array1[i] != array2[i]){
+                    return false
+                }
+            }
+            return true
+        }
+
+    
+        function ArrayIncludesTwoThree(array, searchedValue) {
+            for (i=0;i<array.length; i++){
+                if (array[i][1] == searchedValue[1] && array[i][2] == searchedValue[2]) {
+                    return true
+                }
+            }
+            return false
+        }
+
+        //check to see if we are approaching an intersection
+        function intersectionChecker(constructionX, constructionY, squareLog) {
+            //generate a list of all the possible corner tiles the tile could have
+            //CHECK TO SEE IF THE CONSTRUCTION TILE REACHED THE LIMIT
+            if (constructionX < leftLimit || constructionX > rightLimit) {
+                return false
+            }
+            if (constructionY < upperLimit || constructionY > lowerLimit) {
+                return false
+            }
+            if (ArrayIncludes(squareLog, [constructionX, constructionY]) == true) {
+                
+                return false
+            }
+            possibleCorners = []
+            possibleCorners.push([constructionX - 25, constructionY - 25])
+            possibleCorners.push([constructionX + 25, constructionY + 25])
+            possibleCorners.push([constructionX - 25, constructionY + 25])
+            possibleCorners.push([constructionX + 25, constructionY + 25])
+            let indicator = false
+            let realCorners = []
+            for (let i=0;i<possibleCorners.length; i++) {
+                //real tile is a real, placed tile and we will use the variable to check to see if the tile is in a corner of the construction tile 
+
+                if (ArrayIncludes(squareLog, possibleCorners[i]) == true) {
+                    realCorners.push(possibleCorners[i])
+                }
+
+            }
+
+            for (let i=0;i<realCorners.length;i++) {
+                //check to see which corner it is
+                //use math to determine the position of the corner tile in relation to the construction tile (formula: cornerCoordinate - constructionTileCoordinate)
+                let differenceOfX = realCorners[i][0] - constructionX
+                let differenceOfY = realCorners[i][1] - constructionY
+                
+                //if the corner tile is in the upper left corner
+                if(differenceOfX == -rectWidth && differenceOfY == -rectWidth) {
+                    //checks the tile BELOW the corner and to the RIGHT of the corner
+                    if (ArrayIncludes(squareLog, [realCorners[i][0]+rectWidth, realCorners[i][1]]) == true && ArrayIncludes(squareLog, [realCorners[i][0], realCorners[i][1] + rectWidth]) == true) {
+                        return false
+                    }
+                }
+                //if the corner tile is in the upper right corner
+                if (differenceOfX == rectWidth && differenceOfY == -rectWidth) {
+                    //checks the tile BELOW and to the LEFT of the corner
+                    if (ArrayIncludes(squareLog, [realCorners[i][0] - rectWidth, realCorners[i][1]]) == true && ArrayIncludes(squareLog, [realCorners[i][0], realCorners[i][1]+rectWidth]) == true) {
+                        return false
+                    }
+                }
+                 //if the corner tile is in the lower left corner
+                 if (differenceOfX == -rectWidth && differenceOfY == rectWidth) {
+                    //checks the tile ABOVE and to the RIGHT  of the corner
+                    if (ArrayIncludes(squareLog, [realCorners[i][0] + rectWidth, realCorners[i][1]]) == true && ArrayIncludes(squareLog, [realCorners[i][0], realCorners[i][1]-rectWidth]) == true) {
+                        return false
+                    }
+                }
+                //if the corner tile is in the lower right corner
+                if (differenceOfX == rectWidth && differenceOfY == rectWidth) {
+                    //checks the tile ABOVE and to the LEFT  of the corner
+                    if (ArrayIncludes(squareLog, [realCorners[i][0] - rectWidth, realCorners[i][1]]) == true && ArrayIncludes(squareLog, [realCorners[i][0], realCorners[i][1]-rectWidth]) == true) {
+                        return false
+                    }
+                }
+                
+            }
+        }
+
+
+        
+
+        // first is target node, second is current node
+        function calculateHCostToTarget(targetPos, currentPos) {
+            if (targetPos) {
+                return Math.abs(currentPos[0] - targetPos[0]) + Math.abs(currentPos[1] - targetPos[1])
+            }
+            else {
+                return 
+            }
+        }
+
+        let npcCount
+        let floorTile
+        let alienModelList = ["Classic", "Cuddly", "Creepy"]
+        let alienModelAssetList = []
+        let characterModelList = []
+        let characterModelListRight = []
+        let doorTileImage
+        let doorTileArrow
+        let explosion
+        let shootSound
+        let doNotSave = false
+        function preload() {
+            floorTile = loadImage("floorTile.png")
+            wallTileList.push(loadImage("wallTile.png")) 
+            wallTileList.push(loadImage("wallTileDown.png"))
+            wallTileList.push(loadImage("wallTileRight.png"))
+            wallTileList.push(loadImage("wallTileLeft.png"))
+            wallTileList.push(loadImage("wallTileRightCorner.png"))
+            wallTileList.push(loadImage("wallTileLeftCorner.png"))
+            doorTileImage = loadImage("doorTile.png")
+            doorTileArrow = loadImage("Arrow.png")
+
+            //loot
+            LootTypeList.push(loadImage("Medkit.png"))
+            LootTypeList.push(loadImage("AmmoArt/Ammo1.png"))
+            LootTypeList.push(loadImage("AmmoArt/Ammo2.png"))
+            LootTypeList.push(loadImage("AmmoArt/Ammo3.png"))
+            
+            //aliens
+            alienModelAssetList.push(loadImage("AlienArt/ClassicAlien.png"))
+            alienModelAssetList.push(loadImage("AlienArt/CuddlyAlien.png"))
+            alienModelAssetList.push(loadImage("AlienArt/CreepyAlien.png"))
+
+            //main character
+            characterModelList.push(loadImage("CharacterArt/MainCharacter1.png"))
+            characterModelList.push(loadImage("CharacterArt/MainCharacter2.png"))
+            characterModelList.push(loadImage("CharacterArt/MainCharacter3.png"))
+
+            characterModelListRight.push(loadImage("CharacterArt/MainCharacter1Right.png"))
+            characterModelListRight.push(loadImage("CharacterArt/MainCharacter2Right.png"))
+            characterModelListRight.push(loadImage("CharacterArt/MainCharacter3Right.png"))
+
+            //special fx
+            explosion = loadImage("explosion.gif")
+
+            //sounds
+            shootSound = loadSound("Sounds/GunSound.wav")
+            explosionSound = loadSound("Sounds/explosion.mp3")
+        }
+        let finalX
+        let finalY
+        //NO FILL RAWLY IN DRAW
+        let positionX = -3 * rectWidth
+        let positionY = -3 * rectWidth
+        let doorTile = []
+
+        function setup() {
+            //if any values are here, boot them up
+            //if values exist, get them them
+            if (localStorage.getItem("squareLog") && localStorage.getItem("mainCharacter")) {
+                oppList = JSON.parse(localStorage.getItem("oppList"))
+                lootLog = JSON.parse(localStorage.getItem("lootLog"))
+                wallLog = JSON.parse(localStorage.getItem("wallLog"))
+                borderLog = JSON.parse(localStorage.getItem("borderLog"))
+                squareLog = JSON.parse(localStorage.getItem("squareLog"))
+                trueRoomList = JSON.parse(localStorage.getItem("trueRoomList"))
+                doorTile = JSON.parse(localStorage.getItem("doorTile"))
+                positionX = JSON.parse(localStorage.getItem("positionX"))
+                positionY = JSON.parse(localStorage.getItem("positionY"))
+                mainCharacter = JSON.parse(localStorage.getItem("mainCharacter"))
+                currentCharacterModel = characterModelListRight[0]
+                console.log(mainCharacter)
+                for (let enemy of oppList) {
+                    enemy.generatedPath = undefined
+                    enemy.lastChecked = 0
+                }
+                createCanvas(windowWidth, windowHeight)
+                return
+            
+            }
+
+            npcCount = Math.floor(random(10, 20))
+            
+            
+            createCanvas(windowWidth, windowHeight)
+            rectMode(CENTER)
+            imageMode(CENTER)
+            fill(0, 255, 0)
+                rect(constructionX, constructionY, rectWidth, rectWidth)
+                squareLog.push([constructionX, constructionY])
+                
+                let russia = 0
+                let numberofSquareProduced = 0
+                for (let i = 0; squareLog.length < 500; i++) {
+                    //determine where the next square is gonna be
+                    constructionType = random(0, 25)
+                    //moveForward RELATIVE to where the squares are generating
+                    //1000 downOrient
+                    if (constructionType <= 10) {
+                        //~200 downOrient
+                        if (forwardType == "downOrient") {
+                            constructionY += rectWidth
+                        }
+                        if (forwardType == "leftOrient") {
+                            constructionX -= rectWidth
+                        }
+                        if (forwardType == "rightOrient") {
+                            constructionX += rectWidth
+                        }
+                        if (forwardType == "upOrient") {
+                            constructionY -= rectWidth
+                        }
+                    
+                        if (intersectionChecker(constructionX, constructionY, squareLog) != false && squareChecker(constructionX, constructionY, squareLog) <= 2) {
+                            fill(255, 255, 0)
+                            image(floorTile, constructionX, constructionY, rectWidth, rectWidth)
+
+                            //add the tile to the log of all the tiles (for future reference)
+                            squareLog.push([constructionX, constructionY])
+
+                            backupConstructorX = constructionX
+                            backupConstructorY = constructionY
+                            dangerZone = 0
+                            numberofSquareProduced +=1
+                        } 
+                        
+                        else {
+                            i -= 1
+                            constructionX = backupConstructorX
+                            constructionY = backupConstructorY
+                            dangerZone += 1
+                            if (dangerZone >= 4) {
+
+                                //if there is no path forward, choose a random tile to go from
+                                let randomTile = squareLog[Math.floor(random(0, squareLog.length))]
+                                constructionX = randomTile[0]
+                                constructionY = randomTile[1]
+                            }
+                        }
+
+                        
+
+                    }
+                    //move LEFT relative to the generation of squares
+                    if (constructionType > 10 && constructionType <= 15) {
+                        i -=1
+                        if (forwardType == "downOrient") {
+                            forwardType = "leftOrient"
+                            //the variable forwardType here is assigned the left orient value, BUT is not reassigned in the next iteration
+                        }
+                        else if (forwardType == "leftOrient") {
+                            forwardType = "downOrient"
+                        }
+                        else if (forwardType == "rightOrient") {
+                            forwardType = "upOrient"
+                        }
+                        else if (forwardType == "upOrient") {
+                            forwardType = "rightOrient"
+                        }
+                    }
+                    //move RIGHT relative to the generation of squares
+                    if (constructionType > 15 && constructionType <= 20) {
+                        i -= 1
+                        if (forwardType == "downOrient") {
+                            forwardType = "rightOrient"
+                        }
+                        else if (forwardType == "leftOrient") {
+                            forwardType = "upOrient"
+                        }
+                        else if (forwardType == "rightOrient") {
+                            forwardType = "downOrient"
+                        }
+                        else if (forwardType == "upOrient") {
+                            forwardType = "leftOrient"
+                        }
+                    }
+
+                    russia+=1
+
+                    
+                }
+                finalX = squareLog[squareLog.length - 1][0]
+                finalY = squareLog[squareLog.length - 1][1]
+                squareLog.pop()
+
+                //after hallway is set up, we will now generate the rooms
+                //PROBLEM: #1 how do we see and make sure rooms don't overlap with each other
+                //PROBLEM: #2 how to make sure that the room is rotated CORRECTLY, if we just use default dimensional params, the room will always face the same direction, which may not always be suitable, especially since rooms can be generated up and down or side to side
+                for (let i=0;i<roomList.length;i++) {
+                    //randomly generate an index so that the room will generate in a random place 
+                    let randomIndex = Math.floor(random(Math.floor(squareLog.length/2), squareLog.length))
+                    let attempt = 0 
+                    let type = 0
+                    let isItFlippedYet = false
+
+                    // check to see if a left side room is possible
+                    //Formula: x: CENTER position of the square tile - 2 tiles - half a tile (to adjust for the center measure and convert to a left measurement) - room width (to get to the left corner)
+                    let roomDimension = [squareLog[randomIndex][0] - 2*rectWidth - roomList[i][0] - rectWidth/2, squareLog[randomIndex][1] - roomList[i][1]/2]
+                    if (checkRoomSpace(roomDimension, i, squareLog) == true) {
+                        //set up for the conditions in which the room will be set up
+                        rectMode(CORNERS)
+                        rect(roomDimension[0], roomDimension[1], roomList[i][0], roomList[i][1])
+                        attempt +=1 
+                        generationType = "left"
+                        
+                    }
+                    // check change room dimensions to see if a right side room is possible if a left is not possible
+                    else if (attempt == 0) {
+                        roomDimension = [squareLog[randomIndex][0] + 2*rectWidth + rectWidth/2, squareLog[randomIndex][1] - roomList[i][1]/2]
+                    }
+                    if (checkRoomSpace(roomDimension, i, squareLog) == true && attempt == 0) {
+                        //set up for the conditions in which the room will be set up
+                        rectMode(CORNERS)
+                        rect(roomDimension[0], roomDimension[1], roomList[i][0], roomList[i][1])
+                        attempt +=1 
+                        generationType = "right"
+                    }
+                    // check change room dimensions to see if a bottom side room is possible if a right/left is not possible
+                    else if (attempt == 0) {
+                        //flip the X and Y sizes
+                        roomList[i].reverse()
+                        isItFlippedYet = true
+                        roomDimension = [squareLog[randomIndex][0] - roomList[i][0]/2, squareLog[randomIndex][1] + 2*rectWidth + rectWidth/2]
+                        
+                        
+                        
+                    }
+
+                    if (checkRoomSpace(roomDimension, i, squareLog) == true && attempt == 0) {
+                        //set up for the conditions in which the room will be set up
+                        rectMode(CORNERS)
+                        rect(roomDimension[0], roomDimension[1], roomList[i][0], roomList[i][1])
+                        attempt +=1 
+                        generationType = "down"
+
+                    }
+
+                    // check change room dimensions to see if a up side room is possible if a right/left/down is not possible
+                    else if (attempt == 0) {
+                        roomDimension = [squareLog[randomIndex][0] - roomList[i][0]/2, squareLog[randomIndex][1] - 2*rectWidth - rectWidth/2 - roomList[i][1]]
+
+                        //flip the X and Y sizes if not already
+                        if (isItFlippedYet == false) {
+                            roomList[i].reverse()
+                            isItFlippedYet = true
+                        }
+                    }
+
+                    if (checkRoomSpace(roomDimension, i, squareLog) == true && attempt == 0) {
+                        //set up for the conditions in which the room will be set up
+                        rectMode(CORNERS)
+                        rect(roomDimension[0], roomDimension[1], roomList[i][0], roomList[i][1])
+                        attempt +=1 
+                        generationType = "up"
+                    }
+
+                    //check to see if rooms overlap each other
+
+
+                    if (checkRoomOverlap(roomDimension, i, roomList, trueRoomList) == false) {
+                        attempt = 0
+                    }
+
+                    if (attempt == 0) {
+                        if (isItFlippedYet == true) {
+                            //flip back the X and Y if it was flipped before
+                            roomList[i].reverse()
+                        }
+                        i -= 1
+                    }
+                    else {
+                        //add the connecting path to the room depending on where the room is
+                        //left side room
+                        if (generationType == "left")  {
+                            let firstSquareX = squareLog[randomIndex][0] - rectWidth
+                            squareLog.push([squareLog[randomIndex][0] - rectWidth, squareLog[randomIndex][1]])
+                            squareLog.push([squareLog[randomIndex][0] - 2*rectWidth, squareLog[randomIndex][1]])
+                        }
+                        else if (generationType == "right") {
+                            //double as there are 2 squares apart
+                            squareLog.push([squareLog[randomIndex][0] + rectWidth, squareLog[randomIndex][1]])
+                            squareLog.push([squareLog[randomIndex][0] + 2*rectWidth, squareLog[randomIndex][1]])
+                        }
+                        
+                        else if (generationType == "down") {
+                            squareLog.push([squareLog[randomIndex][0], squareLog[randomIndex][1] + rectWidth])
+                            squareLog.push([squareLog[randomIndex][0], squareLog[randomIndex][1] + 2*rectWidth])
+                        }
+
+                        else if (generationType == "up") {
+                            squareLog.push([squareLog[randomIndex][0], squareLog[randomIndex][1] - rectWidth])
+                            squareLog.push([squareLog[randomIndex][0], squareLog[randomIndex][1] - 2*rectWidth])
+                        }
+                        //add the room into the array for later rendering [x, y, sizeX, sizeY]
+                        trueRoomList.push([roomDimension[0], roomDimension[1], roomList[i][0], roomList[i][1]])
+                    }                    
+                }
+
+                //now we create the borders/wall blocks
+                // cycle through every hallway tile and check to see if it needs borders
+                for (let i=0; i<squareLog.length; i++) {
+                    //check to see to the UP side of the tile is viable
+                    let tile = [squareLog[i][0], squareLog[i][1] - rectWidth]
+                    //make sure there is no impediment in placing a border block there. If there is, don't place the block
+                    if (ArrayIncludes(squareLog, tile) != true && checkRoomBorderOverlap(tile, trueRoomList) != true){
+                        tile = [squareLog[i][0], squareLog[i][1] - rectWidth]
+                        if (ArrayIncludes(borderLog, tile) != true) {
+                            borderLog.push(tile)
+                        }
+                        wallLog.push([wallTile, tile[0], tile[1]])
+                    }
+                    //check to see to the DOWN side of the tile is viable
+                    tile = [squareLog[i][0], squareLog[i][1] + rectWidth]
+                    if (ArrayIncludes(squareLog, tile) != true && checkRoomBorderOverlap(tile, trueRoomList) != true){
+                        if (ArrayIncludes(borderLog, tile) != true) {
+                            borderLog.push(tile)
+                        }
+                        wallLog.push([wallTileDown, tile[0], tile[1]])
+                    }
+                    //check to see to the RIGHT side of the tile is viable
+                    tile = [squareLog[i][0] + rectWidth, squareLog[i][1]]
+                    if (ArrayIncludes(squareLog, tile) != true && checkRoomBorderOverlap(tile, trueRoomList) != true){
+                        if (ArrayIncludes(borderLog, tile) != true) {
+                            borderLog.push(tile)
+                        }
+                        wallLog.push([wallTileRight, tile[0], tile[1]])
+                    }
+                    //check to see to the LEFT side of the tile is viable
+                    tile = [squareLog[i][0] - rectWidth, squareLog[i][1]]
+                    if (ArrayIncludes(squareLog, tile) != true && checkRoomBorderOverlap(tile, trueRoomList) != true){
+                        if (ArrayIncludes(borderLog, tile) != true) {
+                            borderLog.push(tile)
+                        }
+                        wallLog.push([wallTileLeft, tile[0], tile[1]])
+                    }
+
+                } 
+
+                //generate borders for rooms
+                for (let i = 0; i<trueRoomList.length; i++) {
+                    //determine how many times we will have to do the loop (down and up)
+                    let numberOfIterationY = trueRoomList[i][3]/rectWidth
+                    //determine how many times we will have to do the loop (right and left)
+                    let numberOfIterationX = trueRoomList[i][2]/rectWidth
+                    
+                    let startingPosition = [trueRoomList[i][0] - (rectWidth/2), trueRoomList[i][1] + (rectWidth/2)]
+                    //adds border tiles to the left of the room
+                    for (let j=0; j<numberOfIterationY; j++) {
+                        //only add to the array if there is no overlapping tile
+                        if (ArrayIncludes(squareLog, startingPosition) != true) {
+                            borderLog.push(startingPosition)
+                            wallLog.push([wallTileLeft, startingPosition[0], startingPosition[1]])
+                        }
+                        else {
+                            wallLog.push([wallTile, startingPosition[0], startingPosition[1] - rectWidth])
+
+                            wallLog.push([wallTileDown, startingPosition[0], startingPosition[1] + rectWidth])
+                        }
+                    
+                        startingPosition = [startingPosition[0], startingPosition[1] + rectWidth]
+                    }
+                    startingPosition = [trueRoomList[i][0] + trueRoomList[i][2] + (rectWidth/2), trueRoomList[i][1] + (rectWidth/2)] 
+                    //adds border tiles to the right of the room
+                    for (let j=0; j<numberOfIterationY; j++) {
+                        //only add to the array if there is no overlapping tile
+                        if (ArrayIncludes(squareLog, startingPosition) != true) {
+                            borderLog.push(startingPosition)
+                            wallLog.push([wallTileRight, startingPosition[0], startingPosition[1]])
+                        }
+                        else {
+                            wallLog.push([wallTile, startingPosition[0], startingPosition[1] - rectWidth])
+
+                            wallLog.push([wallTileDown, startingPosition[0], startingPosition[1] + rectWidth])
+                        }
+                        
+                        startingPosition = [startingPosition[0], startingPosition[1] + rectWidth]
+                    }
+                    startingPosition = [trueRoomList[i][0] + (rectWidth/2), trueRoomList[i][1] + trueRoomList[i][3] + (rectWidth/2)] 
+                    //adds tiles on the bottom of the room
+                    for (let j=0; j<numberOfIterationX; j++) {
+                        //only add to the array if there is no overlapping tile
+                        if (ArrayIncludes(squareLog, startingPosition) != true) {
+                            borderLog.push(startingPosition)
+                            wallLog.push([wallTileDown, startingPosition[0], startingPosition[1]])
+                        }
+                        else {
+                            wallLog.push([wallTileRight, startingPosition[0] + rectWidth, startingPosition[1]])
+
+                            wallLog.push([wallTileLeft, startingPosition[0] - rectWidth, startingPosition[1]])
+                        }
+                        startingPosition = [startingPosition[0] + rectWidth, startingPosition[1]]
+                    }
+                    startingPosition = [trueRoomList[i][0] + (rectWidth/2), trueRoomList[i][1] - (rectWidth/2)] 
+                    //adds tiles on the top of the room
+                    for (let j=0; j<numberOfIterationX; j++) {
+                        //only add to the array if there is no overlapping tile, we will add a true property at the end so that it will not remove a wall tile from the room for the door
+                        if (ArrayIncludes(squareLog, startingPosition) != true) {
+                            borderLog.push(startingPosition)
+                            wallLog.push([wallTile, startingPosition[0], startingPosition[1], true])
+                        }
+                        else {
+                            wallLog.push([wallTileRight, startingPosition[0] + rectWidth, startingPosition[1]])
+
+                            wallLog.push([wallTileLeft, startingPosition[0] - rectWidth, startingPosition[1]])
+                        }
+                        
+                        startingPosition = [startingPosition[0] + rectWidth, startingPosition[1]]
+                    }
+                    
+
+                }
+
+                //we will create a new array so that it will hold updated priorities to generate the walls
+                let trueWallList = []
+
+                //update the priorities
+                for (let i=0;i<wallLog.length;i++) {
+
+                    if (wallLog[i][0] != wallTile) {
+                        trueWallList.push(wallLog[i])
+                    }
+                }
+                //update the priorities
+                let doorSegment = false
+                let amountOfWalls = 0
+                for (let i=0;i<wallLog.length;i++) {
+
+                    if (wallLog[i][0] == wallTile) {
+                        trueWallList.push(wallLog[i])
+
+                        //check to see if one of the wall tiles have a corner that includes a wall
+                        if (ArrayIncludesTwoThree(wallLog, [true, wallLog[i][1] - rectWidth, wallLog[i][2] + rectWidth]) == true && ArrayIncludes(squareLog, [wallLog[i][1] - rectWidth, wallLog[i][2]]) != true) {
+                            trueWallList.push([wallTileLeftCorner, wallLog[i][1] - rectWidth, wallLog[i][2]])
+                        }
+
+                        if (ArrayIncludesTwoThree(wallLog, [true, wallLog[i][1] + rectWidth, wallLog[i][2] + rectWidth]) == true && ArrayIncludes(squareLog, [wallLog[i][1] + rectWidth, wallLog[i][2]]) != true) {
+                            trueWallList.push([wallTileRightCorner, wallLog[i][1] + rectWidth, wallLog[i][2]])
+                        }
+                        if (wallLog[i].length == 3) {
+                            amountOfWalls += 1
+                        }
+                        
+                    }
+                }
+
+                wallLog = trueWallList
+                let indexOfDoor = Math.ceil(random(0, amountOfWalls))
+                amountOfWalls = 1
+
+                //choose one of the wall tiles to add a door on
+
+                for (let i=0;i<wallLog.length;  i++) {
+                    if (amountOfWalls == indexOfDoor && wallLog[i][0] == wallTile && wallLog[i].length == 3) {
+                        doorTile[0] = wallLog[i][1]
+                        doorTile[1] = wallLog[i][2]
+                        break
+                    }
+
+                    if (wallLog[i][0] == wallTile && wallLog[i].length == 3){
+                        amountOfWalls += 1
+                    }
+                    
+                }
+
+                //loot generation
+                for (let i=0; i<trueRoomList.length; i++) {
+                    //determine the amount of loot
+                    let lootAmount = Math.floor(random(1, (trueRoomList[i][2] * trueRoomList[i][3])/(lootWidth * rectWidth)**2/30))
+                    for (let j=0; j<lootAmount;j++) {
+                        let loot = new generateLoot(trueRoomList[i][0],trueRoomList[i][1], trueRoomList[i][2], trueRoomList[i][3])
+                        lootLog.push(loot)
+                    }
+                }
+                
+                //npc ALGORITHM
+
+                //GENERATE NPCs
+                for (let i=0;i < npcCount; i++) {
+                    let enemy = new newEnemyNPC(alienModelList[Math.floor(random(0, 2))])
+                    oppList.push(enemy)
+                }
+
+                //put everything in the middle of the screen, even the player
+                for (let i=0; i<squareLog.length; i++) {
+                    squareLog[i][0] += (window.innerWidth/2 - rectWidth)
+                    squareLog[i][1] += (window.innerHeight/2 - rectWidth)
+                }
+                for (let j=0; j< trueRoomList.length; j++) {
+                    trueRoomList[j][0] += (window.innerWidth/2 - rectWidth)
+                    trueRoomList[j][1] += (window.innerHeight/2 - rectWidth)
+                }
+                for (let i=0; i<borderLog.length; i++) {
+                    borderLog[i][0] += (window.innerWidth/2 - rectWidth)
+                    borderLog[i][1] += (window.innerHeight/2 - rectWidth)
+                }
+                for (let i=0; i<wallLog.length; i++) {
+                    wallLog[i][1] += (window.innerWidth/2 - rectWidth)
+                    wallLog[i][2] += (window.innerHeight/2 - rectWidth)
+                }
+                for (let i=0; i<lootLog.length; i++) {
+                    lootLog[i].x += (window.innerWidth/2 - rectWidth)
+                    lootLog[i].y += (window.innerHeight/2 - rectWidth)
+                }
+                for (let enemy of oppList) {
+                    //change position of enemy
+                    enemy.x += (window.innerWidth/2 - rectWidth)
+                    enemy.y += (window.innerHeight/2 - rectWidth)
+                    if (enemy.generatedPath) {
+                        for (let generationTile of enemy.generatedPath) {
+                        //adjust the ai path
+                        generationTile["pos"][0] += (window.innerWidth/2 - rectWidth)
+                        generationTile["pos"][1] += (window.innerHeight/2 - rectWidth)
+                    }
+                    }
+                    
+                }
+                positionX += (window.innerWidth/2 - rectWidth)
+                positionY += (window.innerHeight/2 - rectWidth)
+                doorTile[0] += (window.innerWidth/2 - rectWidth)
+                doorTile[1] += (window.innerHeight/2 - rectWidth)
+                mainCharacter = new player()
+                mainCharacter.amountRequired = Math.floor(npcCount * 0.7) 
+                if (mainCharacter.currentWeapon == 0) {
+                    currentCharacterModel = characterModelListRight[0]
+                }
+                if (mainCharacter.currentWeapon == 1) {
+                    currentCharacterModel = characterModelListRight[1]
+                }
+                if (mainCharacter.currentWeapon == 2) {
+                    currentCharacterModel = characterModelListRight[2]
+                }
+            
+        }
+        function runAI(startingPos, targetPos) {
+            let openTiles = []
+                let closedTiles = []
+                let generatedPath = []
+                let startingNode = []
+                let goalNode = []
+                goalNode["pos"] = targetPos
+                startingNode["pos"] = startingPos
+                startingNode["g"] = 0
+                startingNode["h"] = calculateHCostToTarget(goalNode["pos"], startingNode["pos"])
+                if (!startingNode["h"]) {
+                    return
+                }
+                openTiles.push(startingNode)
+                let finishedPathCompletion = false
+                let lastMiliCheck = millis()
+                
+                while (openTiles.length != 0 && finishedPathCompletion == false) {  
+                    let lowestIndex = 0
+                    //if the open list is greater than 20K, it's time to stop
+                    if (closedTiles.length >= 2000) {
+                        break
+                    }
+                    
+                    //look at horizontal and vertical tiles to determine score
+                    for (let i=0;i<openTiles.length; i++) {
+                        //compare and see until we get the lowest possible f cost
+                        if (openTiles[i]["g"]+openTiles[i]["h"] < openTiles[lowestIndex]["g"] + openTiles[lowestIndex]["h"]) {
+                            lowestIndex = i
+                        }
+                    }
+                    // if the next node is the goal node, refresh
+                    if (ArrayCompare(goalNode["pos"], openTiles[lowestIndex]["pos"]) == true) {
+                        generatedPath.push(openTiles[lowestIndex])
+                        let incrementer = openTiles[lowestIndex]
+                        while (finishedPathCompletion == false) {
+                            if (Object.keys(incrementer).length == 4) {
+                                generatedPath.push(incrementer["parent"])
+                                incrementer = incrementer["parent"]
+                                
+                            }
+                            else {
+                                finishedPathCompletion = true
+                                //reverse the array so the starting tile is first
+                                generatedPath.reverse()
+                                return generatedPath.reverse()
+                            }
+                            
+
+                        }
+                        
+                    }
+                    else {
+                        //check the up tile as a neighbor
+                        if (closedTiles.length >= 3000) {
+                        break
+                        }   
+                        let neighborPosition = [openTiles[lowestIndex]["pos"][0], openTiles[lowestIndex]["pos"][1] - rectWidth] 
+                        let overlapDetected = false
+                        let isClosed = false
+                        for (let i=0; i<closedTiles.length; i++) {
+                            if (ArrayCompare(closedTiles[i]["pos"], neighborPosition) == true) {
+                                isClosed = true
+                            }
+                        }
+                        //make sure bordering tiles are not walls
+                        if (ArrayIncludes(borderLog, neighborPosition) != true && ArrayIncludes(squareLog, neighborPosition) == true && isClosed == false) {
+                            //calculate g and h costs
+                            neighborPosition = []
+                            neighborPosition["pos"] = [openTiles[lowestIndex]["pos"][0], openTiles[lowestIndex]["pos"][1] - rectWidth]  
+                            neighborPosition["g"] = openTiles[lowestIndex]["g"] + rectWidth
+                            neighborPosition["h"] = calculateHCostToTarget(goalNode["pos"], neighborPosition["pos"])
+                            neighborPosition["parent"] = openTiles[lowestIndex]
+                            for (let i=0;i<openTiles.length; i++) {
+                                //if the tile already exists in the open array
+                                if (openTiles[i]["pos"] == neighborPosition["pos"]) {
+                                    //calculate the f cost of the tiles, if the one we are working now has less f cost, we will remove the old tile and replace it with the new
+                                    if (neighborPosition["g"] + neighborPosition["h"] < openTiles[i]["g"] + openTiles[i]["h"]) {
+                                        openTiles.splice(i, 1)
+                                    }
+                                    else {
+                                        overlapDetected = true
+                                    }
+                                }
+                            }
+                            //add the node to the open array if no overlap was detected
+                            if (overlapDetected == false) {
+                                openTiles.push(neighborPosition)
+                            }
+                            
+                        }
+
+                        //check the down tile as a neighbor
+                        neighborPosition = [openTiles[lowestIndex]["pos"][0], openTiles[lowestIndex]["pos"][1] + rectWidth] 
+                        overlapDetected = false
+                        isClosed = false
+                        for (let i=0; i<closedTiles.length; i++) {
+                            if (ArrayCompare(closedTiles[i]["pos"], neighborPosition) == true) {
+                                isClosed = true
+                            }
+                        }
+                        //make sure bordering tiles are not walls
+                        if (ArrayIncludes(borderLog, neighborPosition) != true && ArrayIncludes(squareLog, neighborPosition) == true && isClosed == false) {
+                            //calculate g and h costs
+                            
+                            neighborPosition = []
+                            neighborPosition["pos"] = [openTiles[lowestIndex]["pos"][0], openTiles[lowestIndex]["pos"][1] + rectWidth]  
+                            neighborPosition["g"] = openTiles[lowestIndex]["g"] + rectWidth
+                            neighborPosition["h"] = calculateHCostToTarget(goalNode["pos"], neighborPosition["pos"])
+                            neighborPosition["parent"] = openTiles[lowestIndex]
+                            for (let i=0;i<openTiles.length; i++) {
+                                //if the tile already exists in the open array
+                                if (openTiles[i]["pos"] == neighborPosition["pos"]) {
+                                    //calculate the f cost of the tiles, if the one we are working now has less f cost, we will remove the old tile and replace it with the new
+                                    if (neighborPosition["g"] + neighborPosition["h"] < openTiles[i]["g"] + openTiles[i]["h"]) {
+                                        openTiles.splice(i, 1)
+                                    }
+                                    else {
+                                        overlapDetected = true
+                                    }
+                                }
+                            }
+                            //add the node to the open array if no overlap was detected
+                            if (overlapDetected == false) {
+                                openTiles.push(neighborPosition)
+                            }
+                            
+                        }
+
+                        //check the right tile as a neighbor
+                        neighborPosition = [openTiles[lowestIndex]["pos"][0] + rectWidth, openTiles[lowestIndex]["pos"][1]] 
+                        overlapDetected = false
+                        isClosed = false
+                        for (let i=0; i<closedTiles.length; i++) {
+                            if (ArrayCompare(closedTiles[i]["pos"], neighborPosition) == true) {
+                                isClosed = true
+                            }
+                        }
+                        //make sure bordering tiles are not walls
+                        if (ArrayIncludes(borderLog, neighborPosition) != true && ArrayIncludes(squareLog, neighborPosition) == true && isClosed == false) {
+                            //calculate g and h costs
+                            neighborPosition = []
+                            neighborPosition["pos"] = [openTiles[lowestIndex]["pos"][0] + rectWidth, openTiles[lowestIndex]["pos"][1]]  
+                            neighborPosition["g"] = openTiles[lowestIndex]["g"] + rectWidth
+                            neighborPosition["h"] = calculateHCostToTarget(goalNode["pos"], neighborPosition["pos"])
+                            neighborPosition["parent"] = openTiles[lowestIndex]
+                            for (let i=0;i<openTiles.length; i++) {
+                                //if the tile already exists in the open array
+                                if (openTiles[i]["pos"] == neighborPosition["pos"]) {
+                                    //calculate the f cost of the tiles, if the one we are working now has less f cost, we will remove the old tile and replace it with the new
+                                    if (neighborPosition["g"] + neighborPosition["h"] < openTiles[i]["g"] + openTiles[i]["h"]) {
+                                        openTiles.splice(i, 1)
+                                    }
+                                    else {
+                                        overlapDetected = true
+                                    }
+                                    
+                                }
+                            }
+                            //add the node to the open array if no overlap was detected
+                            if (overlapDetected == false) {
+                                openTiles.push(neighborPosition)
+                            }
+                            
+                        }
+
+                        //check the left tile as a neighbor
+                        neighborPosition = [openTiles[lowestIndex]["pos"][0] - rectWidth, openTiles[lowestIndex]["pos"][1]] 
+                        overlapDetected = false
+                        isClosed = false
+                        for (let i=0; i<closedTiles.length; i++) {
+                            if (ArrayCompare(closedTiles[i]["pos"], neighborPosition) == true) {
+                                isClosed = true
+                            }
+                        }
+                        //make sure bordering tiles are not walls
+                        if (ArrayIncludes(borderLog, neighborPosition) != true && ArrayIncludes(squareLog, neighborPosition) == true && isClosed == false) {
+                            //calculate g and h costs
+                            neighborPosition = []
+                            neighborPosition["pos"] = [openTiles[lowestIndex]["pos"][0] - rectWidth, openTiles[lowestIndex]["pos"][1]]  
+                            neighborPosition["g"] = openTiles[lowestIndex]["g"] + rectWidth
+                            neighborPosition["h"] = calculateHCostToTarget(goalNode["pos"], neighborPosition["pos"])
+                            neighborPosition["parent"] = openTiles[lowestIndex]
+                            for (let i=0;i<openTiles.length; i++) {
+                                //if the tile already exists in the open array
+                                if (openTiles[i]["pos"] == neighborPosition["pos"]) {
+                                    //calculate the f cost of the tiles, if the one we are working now has less f cost, we will remove the old tile and replace it with the new
+                                    if (neighborPosition["g"] + neighborPosition["h"] < openTiles[i]["g"] + openTiles[i]["h"]) {
+                                        openTiles.splice(i, 1)
+                                    }
+                                    else {
+                                        overlapDetected = true
+                                    }
+                                    
+                                }
+                            }
+                            //add the node to the open array if no overlap was detected
+                            if (overlapDetected == false) {
+                                openTiles.push(neighborPosition)
+                            }
+                            
+                        }
+
+                        
+                      
+                        //move the parent tile to "closed category"
+                        closedTiles.push(openTiles[lowestIndex])
+                        openTiles.splice(lowestIndex, 1)
+                    }
+                    
+                }
+        }
+        let iterate = 0
+        // the ranges: forward(0-10), turnLeft(10-15), turnRight(15-20), turnUp(20-25)
+        
+        function checkApproxNPCPos(npcPos) {
+            for (let square of squareLog) {
+                if (collideRectRect(npcPos[0], npcPos[1], rectWidth * npcScaleFactor, rectWidth * npcScaleFactor, square[0] - rectWidth/2, square[1] - rectWidth/2, rectWidth, rectWidth) == true) {
+                    return [square[0], square[1]]
+                }
+            }
+            return
+        }
+
+        function createBullet(playerPos, mousePos, color) {
+            this.target = mousePos
+            this.x = playerPos[0]
+            this.y = playerPos[1] - npcScaleFactor * rectWidth/5
+            let xDisplacement = mousePos[0] - playerPos[0]
+            let yDisplacement = mousePos[1] - (playerPos[1] - npcScaleFactor * rectWidth/5)
+            let distance = dist(playerPos[0], playerPos[1], mousePos[0], mousePos[1])
+            this.speedX = xDisplacement/distance * 20
+            this.speedY = yDisplacement/distance * 20
+            this.color = color
+        }
+
+        let interpolFactor = 0.1
+        let playerBulletList = []
+        let enemyBulletList = []
+        function mouseClicked() {
+            //fire weapon 0
+            if (mainCharacter.currentWeapon == 0 && mainCharacter.ammo1 > 0){
+                mainCharacter.ammo1 -= 1
+                let createdBullet = new createBullet([mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2], [mouseX, mouseY], [255,255,0])
+                createdBullet = playerBulletList.push(createdBullet)
+                shootSound.setVolume(0.3)
+                shootSound.play()
+            }
+            //fire weapon 1
+            if (mainCharacter.currentWeapon == 1 && mainCharacter.ammo2 > 0){
+                mainCharacter.ammo2 -= 1
+                let createdBullet = new createBullet([mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2], [mouseX, mouseY], [100,240,255])
+                createdBullet = playerBulletList.push(createdBullet)
+                shootSound.setVolume(0.3)
+                shootSound.play()
+            }
+            //fire weapon 2
+            if (mainCharacter.currentWeapon == 2 && mainCharacter.ammo3 > 0){
+                mainCharacter.ammo3 -= 1
+                let createdBullet = new createBullet([mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2], [mouseX, mouseY], [255,0,0])
+                createdBullet = playerBulletList.push(createdBullet)
+                shootSound.setVolume(0.3)
+                shootSound.play()
+            }
+        }
+
+        function checkBulletWallCollision(bulletPos) {
+            for (let wall of borderLog) {
+                let collided = collideRectRect(wall[0] - rectWidth/2, wall[1] - rectWidth/2, rectWidth, rectWidth, bulletPos[0], bulletPos[1], 10, 5)
+                if (collided == true) {
+                    return true
+                }
+            }
+            return false
+        }
+
+        function keyPressed() {
+            if (keyCode == 69) {
+                //check to see if next weapon exists, if not go back to weapon 0
+                if (mainCharacter.inventory.indexOf(mainCharacter.currentWeapon + 1) > -1) {
+                    mainCharacter.currentWeapon += 1
+                }
+                else {
+                    mainCharacter.currentWeapon = 0
+                }
+                if (mainCharacter.currentWeapon == 0) {
+                    currentCharacterModel = characterModelListRight[0]
+                }
+                if (mainCharacter.currentWeapon == 1) {
+                    currentCharacterModel = characterModelListRight[1]
+                }
+                if (mainCharacter.currentWeapon == 2) {
+                    currentCharacterModel = characterModelListRight[2]
+                }
+            }
+            if (keyCode == 81) {
+                if (mainCharacter.inventory.indexOf(mainCharacter.currentWeapon - 1) > -1) {
+                    mainCharacter.currentWeapon -= 1
+                }
+                else {
+                    mainCharacter.currentWeapon = mainCharacter.inventory.length - 1
+                }
+                if (mainCharacter.currentWeapon == 0) {
+                    currentCharacterModel = characterModelListRight[0]
+                }
+                if (mainCharacter.currentWeapon == 1) {
+                    currentCharacterModel = characterModelListRight[1]
+                }
+                if (mainCharacter.currentWeapon == 2) {
+                    currentCharacterModel = characterModelListRight[2]
+                }
+            }
+        }
+
+        function checkAlienPlayerOpening(enemyObject) {
+            for (let border of borderLog) {
+                //we get a line that connects the center of the npc and the center of the player to see if there is an opening in any of the broders
+                let hit = collideLineRect(enemyObject.x + enemyObject.sizeX/2, enemyObject.y + enemyObject.sizeY/2, mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2, border[0] - rectWidth/2, border[1] - rectWidth/2, rectWidth, rectWidth)
+                if (hit == true) {
+                    return true
+                }
+            }
+            return false
+        }
+            
+        let doorIterative = 0
+        function createExplosion(x, y) {
+            this.startTime = millis()
+            this.domNode = document.createElement("img")
+            this.domNode.style.height = rectWidth + "px"
+            this.domNode.style.width = rectWidth + "px"
+            this.domNode.style.position = "absolute"
+            this.x = x
+            this.y = y
+            this.domNode.setAttribute("src", "explosion.gif")
+            document.body.appendChild(this.domNode)
+
+        }
+        let explosionList = []
+        function draw() {
+            //if player dies, make them respawn
+            if (mainCharacter.health <= 0) {
+                mainCharacter.health = 100
+                //reposition player
+                let offsetX = width/2 - rectWidth/2 - squareLog[0][0]
+                let offsetY = height/2 - rectWidth/2 - squareLog[0][1]
+                for (let i=0; i<squareLog.length; i++) {
+                    squareLog[i][0] += offsetX
+                    squareLog[i][1] += offsetY
+                }
+                for (let j=0; j< trueRoomList.length; j++) {
+                    trueRoomList[j][0] += offsetX
+                    trueRoomList[j][1] += offsetY
+                }
+                for (let i=0; i<borderLog.length; i++) {
+                    borderLog[i][0] += offsetX
+                    borderLog[i][1] += offsetY
+                }
+                for (let i=0; i<wallLog.length; i++) {
+                    wallLog[i][1] += offsetX
+                    wallLog[i][2] += offsetY
+                }
+                for (let i=0; i<lootLog.length; i++) {
+                    lootLog[i].x += offsetX
+                    lootLog[i].y += offsetY
+                }
+                for (let enemy of oppList) {
+                    //change position of enemy
+                    enemy.x += offsetX
+                    enemy.y += offsetY
+                    enemy.targetVector.x += offsetX
+                    enemy.targetVector.y += offsetY
+                    enemy.enemyVector.x += offsetX
+                    enemy.enemyVector.y += offsetY
+                    if (enemy.generatedPath) {
+                        for (let generationTile of enemy.generatedPath) {
+                        //adjust the ai path
+                        generationTile["pos"][0] += offsetX
+                        generationTile["pos"][1] += offsetY
+                    }
+                    }
+                    
+                }
+                positionX += offsetX
+                positionY += offsetY
+                doorTile[0] += offsetX
+                doorTile[1] +=offsetY
+            }
+
+            clear()
+            rectMode(CORNER)
+            background(70, 70, 70)
+            
+
+
+            fill(140, 140, 140)
+            rect(positionX, positionY, rightLimit/2, lowerLimit)
+
+            let leftLock = false
+            let rightLock = false
+            let downLock = false
+            let upLock = false
+
+
+            
+            for (let wall of wallLog) {
+                if (wall[0] == wallTile) {
+                    rect(wall[1] - rectWidth/2 + rectWidth/10, wall[2] + rectWidth/2 - rectWidth/4, rectWidth - rectWidth/10, rectWidth/5)
+                    if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] - rectWidth/2 + rectWidth/10, wall[2] + rectWidth/2 - rectWidth/4, rectWidth - rectWidth/10, rectWidth/5) == true) {
+                        upLock = true
+                    }
+                }
+                else if (wall[0] == wallTileLeft) {
+                    rect(wall[1] + rectWidth/4 , wall[2] - rectWidth/2 + rectWidth/10, rectWidth/5, rectWidth - rectWidth/2.5)
+                    if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] + rectWidth/4 , wall[2] - rectWidth/2 + rectWidth/10, rectWidth/5, rectWidth - rectWidth/2.5) == true) {
+                        leftLock = true
+                    }
+                }
+                else if (wall[0] == wallTileRight) {
+                    rect(wall[1] - rectWidth/2 , wall[2] - rectWidth/2 + rectWidth/10, rectWidth/5, rectWidth - rectWidth/2.5)
+                    if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] - rectWidth/2 , wall[2] - rectWidth/2 + rectWidth/10, rectWidth/5, rectWidth - rectWidth/2.5) == true) {
+                        rightLock = true
+                    }
+                }
+                else if (wall[0] == wallTileDown) {
+                    rect(wall[1] - rectWidth/2 + rectWidth/10, wall[2] - rectWidth/2, rectWidth - rectWidth/5, rectWidth/5)
+                    if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] - rectWidth/2 + rectWidth/10, wall[2] - rectWidth/2, rectWidth - rectWidth/5, rectWidth/5) == true) {
+                        downLock = true
+                    }
+                }
+                
+                else if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX/1.5, mainCharacter.sizeY, wall[1] - rectWidth/2, wall[2] - rectWidth/2, rectWidth, rectWidth) == true) {
+                    if (wall[0] == wallTileLeft) {
+                        leftLock = true
+                    } 
+                    if (wall[0] == wallTileRight) {
+                        rightLock = true
+                    } 
+                    if (wall[0] == wallTileDown) {
+                        downLock = true
+                    } 
+                    rect(wall[1] - rectWidth/2, wall[2] - rectWidth/2, rectWidth, rectWidth)
+                }
+            }
+            
+
+            
+          
+            rectMode(CENTER)
+
+            //when player moves left, move the squares right
+            if (keyIsDown(65) == true && leftLock == false) {
+                for (let i=0; i<squareLog.length; i++) {
+                    squareLog[i][0] += cameraSpeed
+                }
+                for (let j=0; j< trueRoomList.length; j++) {
+                    trueRoomList[j][0] += cameraSpeed
+                }
+                for (let i=0; i<borderLog.length; i++) {
+                    borderLog[i][0] += cameraSpeed
+                }
+                for (let i=0; i<wallLog.length; i++) {
+                    wallLog[i][1] += cameraSpeed
+                }
+                for (let i=0; i<lootLog.length; i++) {
+                    lootLog[i].x += cameraSpeed
+                }
+                doorTile[0] += cameraSpeed
+                for (let enemy of oppList) {
+                    //change position of enemy
+                    enemy.x += cameraSpeed
+                    enemy.targetVector.x += cameraSpeed
+                    enemy.enemyVector.x += cameraSpeed
+                    if (enemy.generatedPath) {
+                        for (let generationTile of enemy.generatedPath) {
+                        //adjust the ai path
+                        generationTile["pos"][0] += cameraSpeed
+                    }
+                    }
+                    
+                }
+                for (let bullet of playerBulletList) {
+                    bullet.x += cameraSpeed
+                }
+                for (let bullet of enemyBulletList) {
+                    bullet.x += cameraSpeed
+                }
+                for (let explosion of explosionList) {
+                    explosion.x += cameraSpeed
+                }
+                //change orientation of player if they move in the opposite direction
+                if (mainCharacter.currentWeapon == 0) {
+                    currentCharacterModel = characterModelList[0]
+                }
+                if (mainCharacter.currentWeapon == 1) {
+                    currentCharacterModel = characterModelList[1]
+                }
+                if (mainCharacter.currentWeapon == 2) {
+                    currentCharacterModel = characterModelList[2]
+                }
+                
+                positionX += cameraSpeed
+            }
+            //when player moves right, move the squares left
+            if (keyIsDown(68) == true && rightLock == false) {
+                for (let i=0; i<squareLog.length; i++) {
+                    squareLog[i][0] -= cameraSpeed
+                }
+                for (let j=0; j< trueRoomList.length; j++) {
+                    trueRoomList[j][0] -= cameraSpeed
+                }
+                for (let i=0; i<borderLog.length; i++) {
+                    borderLog[i][0] -= cameraSpeed
+                }
+                for (let i=0; i<wallLog.length; i++) {
+                    wallLog[i][1] -= cameraSpeed
+                }
+                for (let i=0; i<lootLog.length; i++) {
+                    lootLog[i].x -= cameraSpeed
+                }
+                doorTile[0] -= cameraSpeed
+                for (let enemy of oppList) {
+                    //change position of enemy
+                    enemy.x -= cameraSpeed
+                    enemy.targetVector.x -= cameraSpeed
+                    enemy.enemyVector.x -= cameraSpeed
+                    if (enemy.generatedPath) {
+                        for (let generationTile of enemy.generatedPath) {
+                        //adjust the ai path
+                        generationTile["pos"][0] -= cameraSpeed
+                    }
+                    }
+                }
+                
+                //change orientation of player if they move in the opposite direction
+                if (mainCharacter.currentWeapon == 0) {
+                    currentCharacterModel = characterModelListRight[0]
+                }
+                if (mainCharacter.currentWeapon == 1) {
+                    currentCharacterModel = characterModelListRight[1]
+                }
+                if (mainCharacter.currentWeapon == 2) {
+                    currentCharacterModel = characterModelListRight[2]
+                }
+                for (let bullet of playerBulletList) {
+                    bullet.x -= cameraSpeed
+                }
+                for (let bullet of enemyBulletList) {
+                    bullet.x -= cameraSpeed
+                }
+                for (let explosion of explosionList) {
+                    explosion.x -= cameraSpeed
+                }
+                positionX -= cameraSpeed
+            }
+            //when player moves up, move the squares down
+            if (keyIsDown(87) == true && upLock == false) {
+                for (let i=0; i<squareLog.length; i++) {
+                    squareLog[i][1] += cameraSpeed
+                }
+                for (let j=0; j< trueRoomList.length; j++) {
+                    trueRoomList[j][1] += cameraSpeed
+                }
+                for (let i=0; i<borderLog.length; i++) {
+                    borderLog[i][1] += cameraSpeed
+                }
+                for (let i=0; i<wallLog.length; i++) {
+                    wallLog[i][2] += cameraSpeed
+                }
+                for (let i=0; i<lootLog.length; i++) {
+                    lootLog[i].y += cameraSpeed
+                }
+                doorTile[1] += cameraSpeed
+                for (let enemy of oppList) {
+                    //change position of enemy
+                    enemy.y += cameraSpeed
+                    enemy.targetVector.y += cameraSpeed
+                    enemy.enemyVector.y += cameraSpeed
+                    if (enemy.generatedPath) {
+                        for (let generationTile of enemy.generatedPath) {
+                        //adjust the ai path
+                        generationTile["pos"][1] += cameraSpeed
+                    }
+                    }
+                    
+                }
+                for (let bullet of playerBulletList) {
+                    bullet.y += cameraSpeed
+                }
+                for (let bullet of enemyBulletList) {
+                    bullet.y += cameraSpeed
+                }
+                for (let explosion of explosionList) {
+                    explosion.y += cameraSpeed
+                }
+                positionY += cameraSpeed
+            }
+            //when the players moves down, moves the squares up
+            if (keyIsDown(83) == true && downLock == false) {
+                for (let i=0; i<squareLog.length; i++) {
+                    squareLog[i][1] -= cameraSpeed
+                }
+                for (let j=0; j< trueRoomList.length; j++) {
+                    trueRoomList[j][1] -= cameraSpeed
+                }
+                for (let i=0; i<borderLog.length; i++) {
+                    borderLog[i][1] -= cameraSpeed
+                }
+                for (let i=0; i<wallLog.length; i++) {
+                    wallLog[i][2] -= cameraSpeed
+                }
+                for (let i=0; i<lootLog.length; i++) {
+                    lootLog[i].y -= cameraSpeed
+                }
+                doorTile[1] -= cameraSpeed
+                for (let enemy of oppList) {
+                    //change position of enemy
+                    enemy.y -= cameraSpeed
+                    enemy.targetVector.y -= cameraSpeed
+                    enemy.enemyVector.y -= cameraSpeed
+                    if (enemy.generatedPath) {
+                        for (let generationTile of enemy.generatedPath) {
+                        //adjust the ai path
+                        generationTile["pos"][1] -= cameraSpeed
+                    }
+                    }
+                    
+                }
+                for (let bullet of playerBulletList) {
+                    bullet.y -= cameraSpeed
+                }
+                for (let bullet of enemyBulletList) {
+                    bullet.y -= cameraSpeed
+                }
+                for (let explosion of explosionList) {
+                    explosion.y -= cameraSpeed
+                }
+                positionY -= cameraSpeed
+            }
+            
+            
+
+            fill(0, 255, 0)
+            imageMode(CENTER)
+            for (let i=0; i<squareLog.length; i++) {
+                image(floorTile, squareLog[i][0], squareLog[i][1], rectWidth, rectWidth)
+            }
+
+            fill(140, 140, 140)
+            noStroke()
+            for (let i=0; i<borderLog.length; i++) {
+                
+                rect(borderLog[i][0], borderLog[i][1], rectWidth, rectWidth)
+            }
+            for (let i= 0; i <wallLog.length; i++) {
+                image(wallTileList[wallTileNames.indexOf(wallLog[i][0])], wallLog[i][1], wallLog[i][2], rectWidth, rectWidth)
+            }
+            image(doorTileImage, doorTile[0], doorTile[1], rectWidth, rectWidth)
+            
+
+
+            rectMode(CORNER)
+            fill(82,82,82)
+            for (let j=0; j< trueRoomList.length; j++) {
+                rect(trueRoomList[j][0], trueRoomList[j][1], trueRoomList[j][2], trueRoomList[j][3])
+            }
+
+            fill(255, 0, 0)
+
+            imageMode(CORNER)
+            
+            for (let i= 0; i <lootLog.length; i++) {
+                image(LootTypeList[lootTypeName.indexOf(lootLog[i].LootType)], lootLog[i].x, lootLog[i].y, lootLog[i].dimensionX, lootLog[i].dimensionY)
+            }
+            if (iterate == 0) {
+                iterate += 1
+            }
+            else if (iterate == 1) {
+                iterate += 1
+                
+            }
+            lastMiliCheck = millis()
+            fill(255, 0, 0)
+            rectMode(CENTER) 
+
+            imageMode(CORNER) 
+            for (let i=0; i<oppList.length; i++) {
+                //update generated path every 5 secs
+                if (millis() - oppList[i].lastChecked > oppList[i].iterationTime) {
+                    oppList[i].lastChecked = millis()
+                    let orgPosition = checkApproxNPCPos([mainCharacter.x, mainCharacter.y])
+                    //fail safe: if the enemy has moved out of bounds, or if it cannot track the player take the enemy out of the game, 
+                    if (!orgPosition) {
+                        continue
+                    }
+                    //only generate a new path if within a reasonable distance from the player
+                    if (dist(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2, mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2) <= rectWidth * 7){
+                        oppList[i].generatedPath = runAI(orgPosition, checkApproxNPCPos([oppList[i].x, oppList[i].y]))
+                        oppList[i].movedToNextTile = true
+                    }
+                    // if alien goes too far from the world, put it back somewhere
+                    if (dist(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2, mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2) >= rectWidth * 55) {
+                        let newChosenSquare = squareLog[Math.floor(random(0, squareLog.length))]
+                        // position the enemy accordingly
+                        oppList[i].x = newChosenSquare[0] - oppList[i].sizeX/2
+                        oppList[i].y = newChosenSquare[1] - oppList[i].sizeY/2
+                    }
+                    
+                
+                }
+                let targetVector
+                let enemyVector
+                
+                //iterate through the path to see which tile is the closest to the NPC, if a path exists
+                if (oppList[i].generatedPath) {
+                    for (let j = 0;j<oppList[i].generatedPath.length - 1; j++) {
+                        // if the next tile, exists, let the algorithm continue
+                        if (oppList[i].generatedPath.indexOf(j + 1)) {
+
+                            if (oppList[i].movedToNextTile == true) {
+                                oppList[i].enemyVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2)
+                                oppList[i].targetVector = createVector(oppList[i].generatedPath[j + 1]["pos"][0],oppList[i].generatedPath[j + 1]["pos"][1])
+
+                            }
+                            oppList[i].movedToNextTile = false
+                            //determine the speed of the x and y axis of the alien so that it can reach its target
+
+                            let speedX = (oppList[i].targetVector.x - oppList[i].enemyVector.x)/dist(oppList[i].targetVector.x, oppList[i].targetVector.y, oppList[i].enemyVector.x, oppList[i].enemyVector.y) * 5
+                                let speedY = (oppList[i].targetVector.y - oppList[i].enemyVector.y)/dist(oppList[i].targetVector.x, oppList[i].targetVector.y, oppList[i].enemyVector.x, oppList[i].enemyVector.y) * 5  
+                                oppList[i].x += speedX
+                                oppList[i].y += speedY
+                            if (dist(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2, oppList[i].targetVector.x, oppList[i].targetVector.y) <= rectWidth/2) {
+                                oppList[i].generatedPath.splice(0, 1)
+                                interpolFactor = 0.1
+                                oppList[i].movedToNextTile = true
+                            }
+
+                            break
+                        }
+                       
+                    }
+                }
+                //if a path don't exist, don't change anything
+                else {
+                    oppList[i].enemyVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2)
+                    oppList[i].targetVector = createVector(oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeX/2)
+                }
+                
+                //make alien fire bullets
+                //make sure alien is not a stalker alien (they can't shoot) and they are not spamming bullets
+                if (oppList[i].model != alienModelList[2] && millis() - oppList[i].lastFired >= oppList[i].fireTime) {
+                    //make sure alien is in range of player, if they are create a bullet
+                    if (checkAlienPlayerOpening(oppList[i]) != true) {
+                        let bulletColor
+                        if (oppList[i].model == alienModelList[0]) {
+                            bulletColor = [255, 255, 0]
+                        }
+                        else {
+                            bulletColor = [100,240,255]
+                        }
+                        let enemyBullet = new createBullet([oppList[i].x + oppList[i].sizeX/2, oppList[i].y + oppList[i].sizeY/2], [mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2], bulletColor)
+                        oppList[i].lastFired = millis()
+                        enemyBulletList.push(enemyBullet)
+                        shootSound.setVolume(0.1)
+                        shootSound.play()
+                    }
+                }
+
+                //fail safe, if enemy is NaN or it is far away, reassign it to a new spot
+                if (isNaN(oppList[i].x) == true || !checkApproxNPCPos([oppList[i].x, oppList[i].y])) {
+                    let newSelectSquare = squareLog[Math.floor(random(0, squareLog.length))]
+                    oppList[i].x = newSelectSquare[0]
+                    oppList[i].y = newSelectSquare[1]
+                }
+
+                
+                image(alienModelAssetList[alienModelList.indexOf(oppList[i].model)], oppList[i].x, oppList[i].y, oppList[i].sizeX, oppList[i].sizeY)
+            }
+
+            for (let bullet of enemyBulletList) {
+                bullet.x += bullet.speedX
+                bullet.y += bullet.speedY
+                rectMode(CENTER)
+                fill(bullet.color[0], bullet.color[1], bullet.color[2])
+                //check to see if bullet collided with a wall
+                if (checkBulletWallCollision([bullet.x, bullet.y]) == true) {
+                    //if it did collide take the bullet out of the system
+                    enemyBulletList.splice(enemyBulletList.indexOf(bullet), 1)
+                }
+                //check to see if it hit the player
+                else if (collideRectRect(mainCharacter.x + rectWidth/10, mainCharacter.y, mainCharacter.sizeX - rectWidth/5, mainCharacter.sizeY, bullet.x - 5, bullet.y - 2.5, 10, 5) == true) {
+                    //check to see what type of bullet it is
+                    //yellow bullets
+                    if (ArrayCompare([255, 255, 0], bullet.color) == true) {
+                        mainCharacter.health -= Math.floor(random(3, 5))
+                        mainCharacter.health = constrain(mainCharacter.health, 0, 100)
+                    }
+                    else {//blue bullets
+                        mainCharacter.health -= Math.floor(random(3, 5))
+                        mainCharacter.health = constrain(mainCharacter.health, 0, 100)
+                    }
+                    enemyBulletList.splice(enemyBulletList.indexOf(bullet), 1)
+                }
+                else {
+                    rect(bullet.x, bullet.y, 10, 5)
+                }
+                
+            }
+
+            for (let bullet of playerBulletList) {
+                bullet.x += bullet.speedX
+                bullet.y += bullet.speedY
+                rectMode(CENTER)
+                fill(bullet.color[0], bullet.color[1], bullet.color[2])
+                //check to see if bullet collided with a wall
+                if (checkBulletWallCollision([bullet.x, bullet.y]) == true) {
+                    //if it did collide take the bullet out of the system
+                    playerBulletList.splice(playerBulletList.indexOf(bullet), 1)
+                    
+                }
+                else {
+                    for (let enemy of oppList) {
+                        //if bullet hit, remove the bullet
+                        if (collideRectRect(enemy.x, enemy.y, enemy.sizeX, enemy.sizeY, bullet.x - 5, bullet.y - 2.5, 10, 5) == true) {
+                            //yellow bullets
+                            if (ArrayCompare([255, 255, 0], bullet.color) == true) {
+                                enemy.health -= Math.floor(random(5, 10))
+                            }//blue bullets
+                            else if (ArrayCompare([100,240,255], bullet.color) == true) {//blue bullets
+                                enemy.health -= Math.floor(random(10, 40))
+                            }
+                            else { //red bullets
+                                enemy.health -= 100
+                                let theX = enemy.x - (rectWidth - enemy.sizeX)/2
+                                let theY = enemy.y - (rectWidth - enemy.sizeY)/2
+                                explosionSound.setVolume(0.3)
+                                explosionSound.play()
+                                let newExplosion = new createExplosion(theX, theY)
+                                explosionList.push(newExplosion)
+                                console.log(explosionList[0])
+                                console.log(newExplosion)
+                                
+                            }
+
+                            //if enemy died, take the enemy out and if odds in favor, drop loot
+                            if (enemy.health <= 0) {
+                                if (Math.floor(random(0, 5)) == true) {
+                                    let droppedLoot = new generateLoot(enemy.x + (enemy.sizeX - (rectWidth * lootWidth))/2, enemy.y + (enemy.sizeY - (rectWidth * lootWidth))/2, 0, 0, true)
+                                    console.log("THIS RNA MY BOY")
+                                    lootLog.push(droppedLoot)
+                                }
+                                
+                                oppList.splice(oppList.indexOf(enemy), 1)
+                                mainCharacter.amountKilled += 1
+                                
+                            }
+                            
+                            playerBulletList.splice(playerBulletList.indexOf(bullet), 1)
+                        }
+                    }
+                    rect(bullet.x, bullet.y, 10, 5)
+                }
+                
+            }
+
+            //check to see if player collected any loot
+            for (let loot of lootLog) {
+                let hit = collideRectRect(loot.x, loot.y, loot.dimensionX, loot.dimensionY, mainCharacter.x, mainCharacter.y, mainCharacter.sizeX, mainCharacter.sizeY)
+                if (hit == true) {
+                    //if player touched medkit
+                    if (loot.LootType == lootTypeName[0]) {
+                        mainCharacter.health += Math.floor(random(10,20))
+                        mainCharacter.health = constrain(mainCharacter.health, 0, 100)
+                    }
+                    //  if player touched ammo1
+                    if (loot.LootType == lootTypeName[1]) {
+                        mainCharacter.ammo1 += Math.floor(random(10,20))
+                    }
+                    //  if player touched ammo2
+                    if (loot.LootType == lootTypeName[2]) {
+                        mainCharacter.ammo2 += Math.floor(random(10,20))
+                    }
+                    //  if player touched ammo3
+                    if (loot.LootType == lootTypeName[3]) {
+                        mainCharacter.ammo3 += Math.floor(random(10,20))
+                    }
+                    lootLog.splice(lootLog.indexOf(loot), 1)
+                }
+            }
+
+
+            rectMode(CORNER)
+            //check to see if player collided with any wall
+
+            for (let explosion of explosionList) {
+               
+                explosion.domNode.style.left = explosion.x + "px"
+                explosion.domNode.style.top = explosion.y + "px"
+                console.log(explosion.x)
+                //if time is past 0.6 secs, take out the explosion
+                if (millis() - explosion.startTime >= 600) {
+                    console.log("THIS RAN 50K")
+                    document.body.removeChild(explosion.domNode)
+                    console.log("EXPLOSION INDEX: "+ explosionList.indexOf(explosion))
+                    explosionList.splice(explosionList.indexOf(explosion), 1)
+                }
+            }
+
+
+            //check to see if player has reached/hit the door panel, if so send them to the next level
+            if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX, mainCharacter.sizeY, doorTile[0] - rectWidth/2, doorTile[1] - rectWidth/2, rectWidth, rectWidth) == true && keyIsDown(87) == true) {
+                
+                doorIterative += 1
+                if (doorIterative >= 30) {
+                    console.log("MOVE TO NEXT LEVEL")
+                    mainCharacter.levelOneCompleted = true
+                    if (mainCharacter.amountKilled/mainCharacter.amountRequired >= 1) {
+                        //if players have cleared the level, give them the pass so that they will get the good ending
+                        mainCharacter.levelOneTrueCompleted = true
+                        
+                    }
+                    oppList = null
+                    lootLog = null
+                    wallLog = null
+                    borderLog = null
+                    squareLog = null
+                    trueRoomList = null
+                    doorTile = null
+                    positionX = 0
+                    positionY = 0
+                    window.location.href = "level2.html"
+                }
+            }
+
+            image(currentCharacterModel, mainCharacter.x, mainCharacter.y, mainCharacter.sizeX, mainCharacter.sizeY)
+
+            //display bullet ammount for current gun
+            if (mainCharacter.currentWeapon == 0) {
+                document.getElementById("bulletAmount").innerText = mainCharacter.ammo1
+                document.getElementById("bulletLabel").setAttribute("src", "AmmoArt/Ammo1.png")
+            }
+            else if (mainCharacter.currentWeapon == 1) {
+                document.getElementById("bulletAmount").innerText = mainCharacter.ammo2
+                document.getElementById("bulletLabel").setAttribute("src", "AmmoArt/Ammo2.png")
+            }
+            else if (mainCharacter.currentWeapon == 2) {
+                document.getElementById("bulletAmount").innerText = mainCharacter.ammo3
+                document.getElementById("bulletLabel").setAttribute("src", "AmmoArt/Ammo3.png")
+            }
+            //display health amount
+            document.getElementById("healthAmount").innerText = mainCharacter.health
+            //dispaly how many more enemys to kill
+            document.getElementById("task").innerText = "Task: Kill Aliens " + mainCharacter.amountKilled + "/" + mainCharacter.amountRequired
+        }
+        //save data before player leaves
+        window.onbeforeunload = function() {
+            localStorage.setItem("oppList", JSON.stringify(oppList) )
+            localStorage.setItem("lootLog", JSON.stringify(lootLog))
+            localStorage.setItem("wallLog", JSON.stringify(wallLog))
+            localStorage.setItem("borderLog", JSON.stringify(borderLog))
+            localStorage.setItem("squareLog", JSON.stringify(squareLog))
+            localStorage.setItem("trueRoomList",JSON.stringify( trueRoomList))
+            localStorage.setItem("doorTile", JSON.stringify(doorTile))
+            localStorage.setItem("positionX", JSON.stringify(positionX) )
+            localStorage.setItem("positionY",  JSON.stringify(positionY))
+            localStorage.setItem("mainCharacter", JSON.stringify(mainCharacter))
+            
+        }
+    </script>
+</body>
+
+</html>

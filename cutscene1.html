@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"
+        integrity="sha512-uaz5GpnQoE6t5echKlX8P52czvsIGgLPcvlzfvRubLZ1Hp8JemUDnbUiAahbVtPb+jUVrNETuXvAhDDF/N3M4w=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.js" integrity="sha512-TU9AWtV5uUZPX8dbBAH8NQF1tSdigPRRT82vllAQ1Ke28puiqLA6ZVKxtUGlgrH6yWFnkKy+sE6luNEGH9ar0A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Jersey+15&display=swap" rel="stylesheet">
+        <style>
+            body {
+                padding: 0;
+                margin: 0;
+                overflow: hidden;
+                background-color: black
+            }
+
+            .wrap {
+            overflow: hidden;
+            }
+            .slide {
+                height: 100vh;
+                width: 300vw;
+                background: url("Stars.png") repeat;
+                animation: slide 3s linear infinite;
+                opacity: 0;
+            }
+            #obama {
+                height: 75vh;
+                left: 50vw;
+                transform: translate(-50%, 0);
+                position: absolute;
+            }
+            #marcus {
+                height: 75vh;
+                left: 50vw;
+                transform: translate(-50%, 0);
+                position: absolute;
+                opacity: 0;
+            }
+            #spaceship {
+                width: 30vw;
+                z-index: 50;
+                position: absolute;
+                top: 50vh;
+                left: 50vw;
+                transform: translate(-55%, -50%);
+                user-select: none;
+                opacity: 0;
+            }
+
+            .buttonContainer {
+                width: 100vw;
+                position:absolute;
+                bottom: 15vh;
+                display: flex;
+                flex-direction: row;
+                justify-content: space-evenly;
+            
+            }
+
+            .buttonContainer2 {
+                width: 100vw;
+                position:absolute;
+                bottom: 15vh;
+                display: flex;
+                flex-direction: row;
+                justify-content: space-evenly;
+                transform: translate(0, 500%);
+                
+            }
+
+            button {
+                width: 7vw;
+                height: 8vh;
+                border-radius: 50px;
+                background-color: rgb(22, 174, 201, 0.5);
+                font-size: 4vh;
+                font-family: "Jersey 15", sans-serif;
+                font-weight: 400;
+                font-style: normal;
+                user-select: none;
+                color:rgb(0, 216, 255);
+                border-width: 5px;
+                border-color: rgb(0, 216, 255);
+            }
+
+            button:hover {
+                animation: buttonHover 0.1s linear forwards;
+            }
+
+            button:not(:hover) {
+                animation: buttonUnhover 0.1s linear forwards;
+            }
+
+
+            h1 {
+            width: 100vw;
+            height: 10vh;
+            font-size: 10vh;
+            transform: translate(0, -500%);
+            position: absolute;
+            top: 10vh;
+            left: 0;
+            text-align: center;
+            color: white;
+            font-family: "Jersey 15", sans-serif;
+            font-weight: 400;
+            font-style: normal;
+            user-select: none;
+        }
+
+        p {
+            color: white;
+            position: absolute;
+            font-size: 3vh;
+            left: 50vw;
+            transform: translate(-50%, 0);
+            bottom: 10vh;
+            text-align: center;
+            font-family: "Jersey 15", sans-serif;
+            font-weight: 400;
+            font-style: normal;
+            user-select: none;
+        }
+
+
+            @keyframes slideUp {
+                0% {
+                    transform: translate(0, 500%);  
+                }
+                100% {
+                    transform: translate(0, 0);  
+                }
+            }
+
+            @keyframes slide {
+            0% {
+                transform: translate3d(0, 0, 0)
+            }
+            100% {
+                transform: translate3d(-125vw, 0, 0)
+            }
+
+            
+             }
+
+             
+        @keyframes buttonHover {
+            0% {
+                transform: scale(1)
+            }
+            100% {
+                transform: scale(1.5);
+            }
+        }
+
+        @keyframes buttonUnhover {
+            0% {
+                transform: scale(1.5)
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes titleIn {
+            0% {
+                transform: translate(0, -500%)
+            }
+            100% {
+                transform: translate(0, 0%)
+            }
+        }
+        </style>
+</head>
+<body>
+    <img src="obama.png" id="obama">
+    <img src="Marcus.png" id="marcus">
+    <div class="wrap">
+        <div class="slide"></div>
+    </div>
+    <img src="spaceship.gif" id="spaceship">
+    <div class="buttonContainer">
+        <button class="play" onclick="Begin()">Start</button>
+    </div>
+    <div class="buttonContainer2">
+        <button class="nextButton" onclick="next()">Next</button>
+    </div>
+    <h1>Alien Annihilation</h1>
+    <p id="subtitles"></p>
+    
+    <script>
+        let obamaSound 
+        let song
+        let startTime 
+        let songIsPlayed = false
+        let animationSlided = false
+        
+        function preload() {
+            obamaSound = loadSound("obamaSpeech.mp3")
+            song = loadSound("Sounds/songOpening.mp3")
+        }
+        function draw() {
+            if (millis()-startTime >= 1 && millis()-startTime <= 11000) {
+                document.getElementById("subtitles").innerText = "President Ibama: Well, Marcus, let me be clear. The situation aboard our ship is dire, uh, to say the least. We've got ourselves a real mess up there. But I have every confidence in your abilities to get the job done."
+            }
+            if (millis()-startTime >= 11000 && millis()-startTime <= 18500) {
+                document.getElementById("obama").style.opacity = 0
+                document.getElementById("marcus").style.opacity = 1
+                document.getElementById("subtitles").innerText = "President Ibama: You see, Marcus, America looks to individuals like yourself to step up and lead. And let me tell you, son, you're as fine a leader as they come."
+            }
+            if (millis()-startTime >= 18500 && millis()-startTime <= 22000) {
+                document.getElementById("obama").style.opacity = 1
+                document.getElementById("marcus").style.opacity = 0
+                document.getElementById("subtitles").innerText = "President Ibama: Now, I won't sugarcoat it. The alien threat is real."
+            }
+            if (millis()-startTime >= 18000 && millis()-startTime <= 22000) {
+                document.getElementById("obama").style.opacity = 1
+                document.getElementById("marcus").style.opacity = 0
+                
+            }
+            if (millis()-startTime >= 22000 && millis()-startTime <= 32000) {
+                document.getElementById("obama").style.opacity = 0
+                document.getElementById("marcus").style.opacity = 0
+                document.getElementsByClassName("slide")[0].style.opacity = 1
+                document.getElementById("spaceship").style.opacity = 1
+                document.getElementById("subtitles").innerText = "President Ibama: They've taken over one of our ships, and they're not going to give it up without a fight. You've got to retake that ship, floor by floor, uh, until every last alien is scrubbed clean from its decks. "
+            }
+            if (millis()-startTime >= 32000 && millis()-startTime <= 44000) {
+                document.getElementById("obama").style.opacity = 1
+                document.getElementById("marcus").style.opacity = 0
+                document.getElementsByClassName("slide")[0].style.opacity = 0
+                document.getElementById("spaceship").style.opacity = 0
+                document.getElementById("subtitles").innerText = "President Ibama: I know it won't be easy, but I also know that you're the best man for the job. So go out there, Marcus, and make us proud. The entire world is counting on you. And remember, uh, we're all behind you, every step of the way."
+                
+            }
+            if (millis()-startTime >= 34000) {
+                if (songIsPlayed == false) {
+                    song.play()
+                    songIsPlayed = true
+                    
+                }
+                
+            }
+            if (millis()-startTime >= 45000) {
+                if (animationSlided == false) {
+                    document.getElementById("subtitles").innerText = ""
+                    document.getElementsByClassName("buttonContainer2")[0].style.animation = "slideUp 2s ease-out forwards"
+                    document.getElementsByTagName("h1")[0].style.animation = "titleIn 2s ease-out forwards"
+                    animationSlided = true
+                }
+                
+            }
+        }
+        function Begin() {
+            startTime = millis()
+            console.log(startTime)
+            obamaSound.play()
+            document.body.removeChild(document.getElementsByClassName("buttonContainer")[0])
+        }
+
+        function next() {
+            window.location.href = "level1.html"
+        }
+        
+    </script>
+</body>
+</html>
