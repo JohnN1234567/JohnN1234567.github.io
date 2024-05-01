@@ -420,6 +420,7 @@
         let explosion
         let shootSound
         let doNotSave = false
+        let music
         function preload() {
             floorTile = loadImage("floorTile.png")
             wallTileList.push(loadImage("wallTile.png")) 
@@ -430,6 +431,9 @@
             wallTileList.push(loadImage("wallTileLeftCorner.png"))
             doorTileImage = loadImage("doorTile.png")
             doorTileArrow = loadImage("Arrow.png")
+
+
+            music = loadSound("earlyLevelMusic.mp3")
 
             //loot
             LootTypeList.push(loadImage("Medkit.png"))
@@ -466,6 +470,8 @@
         let doorTile = []
 
         function setup() {
+            music.setVolume(0.2)
+            music.loop()
             //if any values are here, boot them up
             //if values exist, get them them
             if (localStorage.getItem("squareLog") !== null && localStorage.getItem("mainCharacter")) {
@@ -484,6 +490,7 @@
                 for (let enemy of oppList) {
                     enemy.generatedPath = undefined
                     enemy.lastChecked = 0
+                    enemy.lastFired = 0
                 }
                 createCanvas(windowWidth, windowHeight)
                 return
@@ -1866,13 +1873,15 @@
                 if (doorIterative >= 30) {
                     console.log("MOVE TO NEXT LEVEL")
                     mainCharacter.levelOneCompleted = true
-                    mainCharacter.amountKilled = 0
-                    mainCharacter.amountRequired = 0
+                    
                     if (mainCharacter.amountKilled/mainCharacter.amountRequired >= 1) {
                         //if players have cleared the level, give them the pass so that they will get the good ending
                         mainCharacter.levelOneTrueCompleted = true
+                        console.log("THIS RUNS THE PASS")
                         
                     }
+                    mainCharacter.amountKilled = 0
+                    mainCharacter.amountRequired = 0
                     localStorage.removeItem("oppList" )
                     localStorage.removeItem("lootLog")
                     localStorage.removeItem("wallLog")

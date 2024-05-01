@@ -23,7 +23,7 @@
             position: absolute;
             user-select: none;
             color: white;
-            font-size: 8vh;
+            font-size: 5vh;
             font-family: "Jersey 15", sans-serif;
             font-weight: 400;
             font-style: normal;
@@ -37,12 +37,12 @@
             left: 90vw;
         }
         #healthLabel {
-            top: 16vh;
+            top: 12vh;
             left: 85vw;
             height: 6vh;
         }
         #bulletLabel {
-            top: 7vh;
+            top: 3vh;
             height: 6vh;
             left: 85vw;
         }
@@ -50,6 +50,41 @@
             position: absolute;
             user-select: none;
             z-index: 5;
+        }
+        #yapson {
+            color:white;
+            position:absolute;
+            bottom: 5vh;
+            text-align: center;
+            width: 100vw;
+            font-family: "Jersey 15", sans-serif;
+            font-weight: 400;
+            font-style: normal;
+            font-size: 3vh;
+        }
+        #cover {
+            text-align: center;
+            width: 100vw;
+            height: 100vh;
+            opacity: 0.7;
+            color: white;
+            background-color: black;
+            position: absolute;
+            top: 0;
+            z-index: 3;
+        }
+        .coverText {
+            position: absolute;
+            top: 25vh;
+            left: 50vw;
+            transform: translate(-50%, 0);
+            z-index: 5;
+            font-size: 3vh;
+        }
+        #boss {
+            position: absolute;
+            bottom: 0;
+            right: 0;
         }
     </style>
     <script defer src="https://unpkg.com/p5.collide2d"></script>
@@ -62,6 +97,11 @@
     <h1 id="healthAmount">100</h1>
     <img id="healthLabel" src="health.png">
     <h1 id="task">Task: Kill Aliens 0/7</h1>
+    <p id="yapson">Yapson: HAHAHA U CANT DEFEAT ME, THE ONLY YAPINATOR ON THIS SHIP</p>
+    <div id="cover">
+        <p class="coverText">Congratulations! You have acquired a new weapon. Use the 'q' and 'e' keys to toggle between weapons! (Text will disappear in a few seconds.)</p>
+    </div>
+    <h1 id="boss">Boss Health</p>
     <script>
         
         let windowWidth = window.innerWidth
@@ -117,7 +157,7 @@
         let lootTypeName = ["Medkit", "PistolAmmo", "SubAmmo", "HE"]
         let oppList = []
         //format for rooms: roomLength, room Width, we will multiply the dimensions by rectWidth to ensure uniformity in increments, additionally make sure all measurements are odd #s so that it can fit with hallway tiles
-        let roomList = [[7 * rectWidth, 11 * rectWidth], [7*rectWidth, 7*rectWidth], [7*rectWidth, 11*rectWidth]]
+        let roomList = [[7 * rectWidth, 11 * rectWidth], [7*rectWidth, 5*rectWidth], [7 * rectWidth, 11 * rectWidth], [9 * rectWidth, 9 * rectWidth]]
         let trueRoomList = []
         let mainCharacter
 
@@ -188,7 +228,7 @@
             this.ammo3 = 30
             this.livesLost = 0
             this.currentWeapon = 0
-            this.inventory = [0, 1, 2]
+            this.inventory = [0]
             this.amountKilled = 0
             this.levelOneCompleted = false
             this.levelTwoCompleted = false
@@ -419,7 +459,10 @@
         let doorTileArrow
         let explosion
         let shootSound
+        let boss
+        let bossPic
         let doNotSave = false
+        let music 
         function preload() {
             floorTile = loadImage("floorTile.png")
             wallTileList.push(loadImage("wallTile.png")) 
@@ -430,6 +473,11 @@
             wallTileList.push(loadImage("wallTileLeftCorner.png"))
             doorTileImage = loadImage("doorTile.png")
             doorTileArrow = loadImage("Arrow.png")
+
+            music = loadSound("level3Music.mp3")
+
+            bossPic = loadImage("lasereyeYapson.png")
+            bossInjuredPic = loadImage("injuredlasereyeYapson.png")
 
             //loot
             LootTypeList.push(loadImage("Medkit.png"))
@@ -464,11 +512,22 @@
         let positionX = -3 * rectWidth
         let positionY = -3 * rectWidth
         let doorTile = []
+        function createBoss() {
+                    this.sizeX = 5*rectWidth
+                    this.sizeY = 5*rectWidth
+                    this.x = trueRoomList[3][0] + rectWidth*2
+                    this.y = trueRoomList[3][1] + rectWidth*2
+                    this.health = 5000
+                    this.lastFired = 0
+                    this.fireTime = 100
+        }
 
         function setup() {
             //if any values are here, boot them up
             //if values exist, get them them
-            if (localStorage.getItem("squareLog") && localStorage.getItem("mainCharacter")) {
+            music.setVolume(0.2)
+            music.loop()
+            if (localStorage.getItem("squareLog") !== null && localStorage.getItem("mainCharacter")) {
                 oppList = JSON.parse(localStorage.getItem("oppList"))
                 lootLog = JSON.parse(localStorage.getItem("lootLog"))
                 wallLog = JSON.parse(localStorage.getItem("wallLog"))
@@ -479,18 +538,25 @@
                 positionX = JSON.parse(localStorage.getItem("positionX"))
                 positionY = JSON.parse(localStorage.getItem("positionY"))
                 mainCharacter = JSON.parse(localStorage.getItem("mainCharacter"))
+                boss = JSON.parse(localStorage.getItem("boss"))
                 currentCharacterModel = characterModelListRight[0]
-                console.log(mainCharacter)
                 for (let enemy of oppList) {
                     enemy.generatedPath = undefined
                     enemy.lastChecked = 0
+                    enemy.lastFired = 0
                 }
                 createCanvas(windowWidth, windowHeight)
                 return
             
             }
+            if (localStorage.getItem("mainCharacter") !== null) {
+                mainCharacter = JSON.parse(localStorage.getItem("mainCharacter"))
+                if (mainCharacter.inventory.length == 2) {
+                    mainCharacter.inventory.push(2)
+                }
+            }
 
-            npcCount = Math.floor(random(10, 20))
+            npcCount = Math.floor(random(40, 50))
             
             
             createCanvas(windowWidth, windowHeight)
@@ -502,7 +568,7 @@
                 
                 let russia = 0
                 let numberofSquareProduced = 0
-                for (let i = 0; squareLog.length < 500; i++) {
+                for (let i = 0; squareLog.length < 300; i++) {
                     //determine where the next square is gonna be
                     constructionType = random(0, 25)
                     //moveForward RELATIVE to where the squares are generating
@@ -820,7 +886,7 @@
                     
 
                 }
-
+                boss = new createBoss()
                 //we will create a new array so that it will hold updated priorities to generate the walls
                 let trueWallList = []
 
@@ -873,8 +939,13 @@
                     
                 }
 
+                
                 //loot generation
                 for (let i=0; i<trueRoomList.length; i++) {
+                    //if boss is in room don't put anything in it
+                    if (trueRoomList[i][2] == trueRoomList[i][3]) {
+                        continue
+                    }
                     //determine the amount of loot
                     let lootAmount = Math.floor(random(1, (trueRoomList[i][2] * trueRoomList[i][3])/(lootWidth * rectWidth)**2/30))
                     for (let j=0; j<lootAmount;j++) {
@@ -927,9 +998,13 @@
                 }
                 positionX += (window.innerWidth/2 - rectWidth)
                 positionY += (window.innerHeight/2 - rectWidth)
+                boss.x += (window.innerWidth/2 - rectWidth)
+                boss.y += (window.innerHeight/2 - rectWidth)
                 doorTile[0] += (window.innerWidth/2 - rectWidth)
                 doorTile[1] += (window.innerHeight/2 - rectWidth)
-                mainCharacter = new player()
+                if (!mainCharacter) {
+                    mainCharacter = new player()
+                }
                 mainCharacter.amountRequired = Math.floor(npcCount * 0.7) 
                 if (mainCharacter.currentWeapon == 0) {
                     currentCharacterModel = characterModelListRight[0]
@@ -940,6 +1015,7 @@
                 if (mainCharacter.currentWeapon == 2) {
                     currentCharacterModel = characterModelListRight[2]
                 }
+               
             
         }
         function runAI(startingPos, targetPos) {
@@ -1282,9 +1358,26 @@
         }
         let explosionList = []
         function draw() {
+            userStartAudio()
+            if (millis() >= 12000 && millis() <= 14000) {
+
+                document.getElementById("yapson").style.opacity = 0
+            }
+            if (millis() < 7000) {
+                return
+            }
+            if (millis() >= 7000 && millis() <= 8000) {
+                if (document.getElementById("cover")) {
+                    document.body.removeChild(document.getElementById("cover"))
+                }
+            }
             //if player dies, make them respawn
             if (mainCharacter.health <= 0) {
                 mainCharacter.health = 100
+                //give ammo to player if they lose any
+                if (mainCharacter.ammo1 <= 0) {
+                    mainCharacter.ammo1 = 15
+                }
                 //reposition player
                 let offsetX = width/2 - rectWidth/2 - squareLog[0][0]
                 let offsetY = height/2 - rectWidth/2 - squareLog[0][1]
@@ -1327,6 +1420,8 @@
                 }
                 positionX += offsetX
                 positionY += offsetY
+                boss.x += offsetX
+                boss.y += offsetY
                 doorTile[0] += offsetX
                 doorTile[1] +=offsetY
             }
@@ -1442,7 +1537,7 @@
                 if (mainCharacter.currentWeapon == 2) {
                     currentCharacterModel = characterModelList[2]
                 }
-                
+                boss.x += cameraSpeed
                 positionX += cameraSpeed
             }
             //when player moves right, move the squares left
@@ -1495,6 +1590,7 @@
                 for (let explosion of explosionList) {
                     explosion.x -= cameraSpeed
                 }
+                boss.x -= cameraSpeed
                 positionX -= cameraSpeed
             }
             //when player moves up, move the squares down
@@ -1537,6 +1633,7 @@
                 for (let explosion of explosionList) {
                     explosion.y += cameraSpeed
                 }
+                boss.y += cameraSpeed
                 positionY += cameraSpeed
             }
             //when the players moves down, moves the squares up
@@ -1579,6 +1676,7 @@
                 for (let explosion of explosionList) {
                     explosion.y -= cameraSpeed
                 }
+                boss.y -= cameraSpeed
                 positionY -= cameraSpeed
             }
             
@@ -1762,6 +1860,26 @@
                     playerBulletList.splice(playerBulletList.indexOf(bullet), 1)
                     
                 }
+                else if (collideRectRect(boss.x, boss.y, boss.sizeX, boss.sizeY, bullet.x - 5, bullet.y - 2.5, 10, 5) == true){
+                    if (ArrayCompare([255, 255, 0], bullet.color) == true) {
+                                boss.health -= Math.floor(random(5, 10))
+                            }//blue bullets
+                            else if (ArrayCompare([100,240,255], bullet.color) == true) {//blue bullets
+                                boss.health -= Math.floor(random(10, 40))
+                            }
+                            else { //red bullets
+                                boss.health -= 100
+                                let theX = boss.x - (rectWidth - boss.sizeX)/2
+                                let theY = boss.y - (rectWidth - boss.sizeY)/2
+                                explosionSound.setVolume(0.3)
+                                explosionSound.play()
+                                let newExplosion = new createExplosion(theX, theY)
+                                explosionList.push(newExplosion)
+
+                                
+                            }
+                            playerBulletList.splice(playerBulletList.indexOf(bullet), 1)
+                }
                 else {
                     for (let enemy of oppList) {
                         //if bullet hit, remove the bullet
@@ -1781,16 +1899,15 @@
                                 explosionSound.play()
                                 let newExplosion = new createExplosion(theX, theY)
                                 explosionList.push(newExplosion)
-                                console.log(explosionList[0])
-                                console.log(newExplosion)
+                           
                                 
                             }
+                            
 
                             //if enemy died, take the enemy out and if odds in favor, drop loot
                             if (enemy.health <= 0) {
-                                if (Math.floor(random(0, 5)) == true) {
+                                if (Math.floor(random(0, 3)) == 1) {
                                     let droppedLoot = new generateLoot(enemy.x + (enemy.sizeX - (rectWidth * lootWidth))/2, enemy.y + (enemy.sizeY - (rectWidth * lootWidth))/2, 0, 0, true)
-                                    console.log("THIS RNA MY BOY")
                                     lootLog.push(droppedLoot)
                                 }
                                 
@@ -1826,7 +1943,7 @@
                     }
                     //  if player touched ammo3
                     if (loot.LootType == lootTypeName[3]) {
-                        mainCharacter.ammo3 += Math.floor(random(10,20))
+                        mainCharacter.ammo3 += Math.floor(random(10,15))
                     }
                     lootLog.splice(lootLog.indexOf(loot), 1)
                 }
@@ -1840,29 +1957,43 @@
                
                 explosion.domNode.style.left = explosion.x + "px"
                 explosion.domNode.style.top = explosion.y + "px"
-                console.log(explosion.x)
                 //if time is past 0.6 secs, take out the explosion
                 if (millis() - explosion.startTime >= 600) {
-                    console.log("THIS RAN 50K")
                     document.body.removeChild(explosion.domNode)
-                    console.log("EXPLOSION INDEX: "+ explosionList.indexOf(explosion))
                     explosionList.splice(explosionList.indexOf(explosion), 1)
                 }
             }
 
+            //make boss fire bullets 
+            if (millis() - boss.lastFired >= boss.fireTime) {
+                if (checkAlienPlayerOpening(boss) != true && boss.health > 0) {
+                    let newBullet = new createBullet([boss.x + boss.sizeX/2, boss.y + boss.sizeY/2], [mainCharacter.x + mainCharacter.sizeX/2, mainCharacter.y + mainCharacter.sizeY/2], [100,240,255])
+                    enemyBulletList.push(newBullet)
+                    boss.lastFired = millis()
+                    shootSound.setVolume(0.1)
+                    shootSound.play()
+                }
+            }
 
             //check to see if player has reached/hit the door panel, if so send them to the next level
             if (collideRectRect(mainCharacter.x, mainCharacter.y, mainCharacter.sizeX, mainCharacter.sizeY, doorTile[0] - rectWidth/2, doorTile[1] - rectWidth/2, rectWidth, rectWidth) == true && keyIsDown(87) == true) {
                 
                 doorIterative += 1
                 if (doorIterative >= 30) {
-                    console.log("MOVE TO NEXT LEVEL")
-                    mainCharacter.levelOneCompleted = true
-                    if (mainCharacter.amountKilled/mainCharacter.amountRequired >= 1) {
+                    mainCharacter.levelThreeCompleted = true
+                    if (mainCharacter.amountKilled/mainCharacter.amountRequired >= 1 && boss.health <= 0) {
                         //if players have cleared the level, give them the pass so that they will get the good ending
-                        mainCharacter.levelOneTrueCompleted = true
+                        mainCharacter.levelThreeTrueCompleted = true
                         
                     }
+                    if (mainCharacter.levelOneTrueCompleted == true && mainCharacter.levelTwoTrueCompleted == true && mainCharacter.levelThreeTrueCompleted == true) {
+                        window.location.href = "cutscene2.html"
+                    }
+                    else {
+                        window.location.href = "cutscene3.html"
+                    }
+                    mainCharacter.amountKilled = 0
+                    mainCharacter.amountRequired = 0
                     oppList = null
                     lootLog = null
                     wallLog = null
@@ -1872,10 +2003,29 @@
                     doorTile = null
                     positionX = 0
                     positionY = 0
-                    window.location.href = "level2.html"
+                    localStorage.removeItem("oppList" )
+                    localStorage.removeItem("lootLog")
+                    localStorage.removeItem("wallLog")
+                    localStorage.removeItem("borderLog")
+                    localStorage.removeItem("squareLog")
+                    localStorage.removeItem("trueRoomList")
+                    localStorage.removeItem("doorTile")
+                    localStorage.removeItem("positionX")
+                    localStorage.removeItem("positionY")
                 }
             }
+            if (boss.health > 0) {
+                image(bossPic, boss.x, boss.y, boss.sizeX, boss.sizeY)
+                document.getElementById("boss").innerText = "Boss Health: " + Math.floor(boss.health)
+            }
+            if (boss.health <= 0) {
+                image(bossInjuredPic, boss.x, boss.y, boss.sizeX, boss.sizeY)
+                document.getElementById("yapson").style.opacity = "1"
+                document.getElementById("yapson").innerText = "Yapson: OUCH U HIT MY RECTUM!"
+                document.getElementById("boss").innerText = "Boss Health: 0"
 
+            }
+            
             image(currentCharacterModel, mainCharacter.x, mainCharacter.y, mainCharacter.sizeX, mainCharacter.sizeY)
 
             //display bullet ammount for current gun
@@ -1894,20 +2044,25 @@
             //display health amount
             document.getElementById("healthAmount").innerText = mainCharacter.health
             //dispaly how many more enemys to kill
-            document.getElementById("task").innerText = "Task: Kill Aliens " + mainCharacter.amountKilled + "/" + mainCharacter.amountRequired
+            document.getElementById("task").innerText = "Task: Kill Aliens " + mainCharacter.amountKilled + "/" + mainCharacter.amountRequired + "\nDefeat Yapson the Singular Head" + "\n Find the Door to the Next Level"
         }
         //save data before player leaves
         window.onbeforeunload = function() {
-            localStorage.setItem("oppList", JSON.stringify(oppList) )
-            localStorage.setItem("lootLog", JSON.stringify(lootLog))
-            localStorage.setItem("wallLog", JSON.stringify(wallLog))
-            localStorage.setItem("borderLog", JSON.stringify(borderLog))
-            localStorage.setItem("squareLog", JSON.stringify(squareLog))
-            localStorage.setItem("trueRoomList",JSON.stringify( trueRoomList))
-            localStorage.setItem("doorTile", JSON.stringify(doorTile))
-            localStorage.setItem("positionX", JSON.stringify(positionX) )
-            localStorage.setItem("positionY",  JSON.stringify(positionY))
             localStorage.setItem("mainCharacter", JSON.stringify(mainCharacter))
+            if (mainCharacter.amountRequired != 0) {
+                localStorage.setItem("oppList", JSON.stringify(oppList) )
+                localStorage.setItem("lootLog", JSON.stringify(lootLog))
+                localStorage.setItem("wallLog", JSON.stringify(wallLog))
+                localStorage.setItem("borderLog", JSON.stringify(borderLog))
+                localStorage.setItem("squareLog", JSON.stringify(squareLog))
+                localStorage.setItem("trueRoomList",JSON.stringify( trueRoomList))
+                localStorage.setItem("doorTile", JSON.stringify(doorTile))
+                localStorage.setItem("positionX", JSON.stringify(positionX) )
+                localStorage.setItem("positionY",  JSON.stringify(positionY))
+                localStorage.setItem("boss", JSON.stringify(boss))
+            }
+            
+            
             
         }
     </script>

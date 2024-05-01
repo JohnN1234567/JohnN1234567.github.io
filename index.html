@@ -6,6 +6,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Jersey+15&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"
+    integrity="sha512-uaz5GpnQoE6t5echKlX8P52czvsIGgLPcvlzfvRubLZ1Hp8JemUDnbUiAahbVtPb+jUVrNETuXvAhDDF/N3M4w=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.js" integrity="sha512-TU9AWtV5uUZPX8dbBAH8NQF1tSdigPRRT82vllAQ1Ke28puiqLA6ZVKxtUGlgrH6yWFnkKy+sE6luNEGH9ar0A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>  
 
     <title>Document</title>
     <style>
@@ -149,21 +153,54 @@
     <h1>Alien Annihilation</h1>
     <div class="buttonContainer">
         <button class="play" onclick="play()">Play</button>
-        <button class="help">Help</button>
+        <button class="help" onclick="help()">Help</button>
         <button class="clear" onclick="clearData()">Clear Data</button>
     </div>
     <script>
+        let mainSong
+        function preload() {
+            mainSong = loadSound("menuSong.mp3")
+        }
         function clearData() {
             console.log("Storage cleared.")
             localStorage.clear()
         }
+        function setup() {
+            mainSong.setVolume(0.5)
+            mainSong.loop()
+        }
         function play() {
             if (JSON.parse(localStorage.getItem("mainCharacter"))) {
-                console.log("AYE")
+                let character = JSON.parse(localStorage.getItem("mainCharacter"))
+                //if none have been completed, then it is level 1
+                if (character.levelOneCompleted == false && character.levelTwoCompleted == false && character.levelThreeCompleted == false) {
+                    window.location.href = "level1.html"
+                }
+                //level 2
+                else if (character.levelOneCompleted == true && character.levelTwoCompleted == false && character.levelThreeCompleted == false) {
+                    window.location.href = "level2.html"
+                }
+                // level 3
+                else if (character.levelOneCompleted == true && character.levelTwoCompleted == true && character.levelThreeCompleted == false) {
+                    window.location.href = "level3.html"
+                }
+                else {
+                    //clear data and restart
+                    localStorage.clear()
+                    window.location.href = "cutscene.html"
+                }
             }
             else {
                 window.location.href = "cutscene1.html"
             }
+        }
+        function help() {
+            window.location.href = "help.html"
+        }
+    
+        function draw() {
+            userStartAudio()
+
         }
     </script>
     

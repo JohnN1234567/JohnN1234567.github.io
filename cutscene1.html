@@ -176,6 +176,12 @@
                 transform: translate(0, 0%)
             }
         }
+        #skip {
+            position: absolute;
+            top: 0;
+            right: 0;
+            opacity: 0;
+        }
         </style>
 </head>
 <body>
@@ -191,6 +197,7 @@
     <div class="buttonContainer2">
         <button class="nextButton" onclick="next()">Next</button>
     </div>
+    <button onclick="skip()" id="skip">Skip</button>
     <h1>Alien Annihilation</h1>
     <p id="subtitles"></p>
     
@@ -200,6 +207,10 @@
         let startTime 
         let songIsPlayed = false
         let animationSlided = false
+        
+        function skip() {
+            window.location.href = "level1.html"
+        }
         
         function preload() {
             obamaSound = loadSound("obamaSpeech.mp3")
@@ -262,6 +273,7 @@
             console.log(startTime)
             obamaSound.play()
             document.body.removeChild(document.getElementsByClassName("buttonContainer")[0])
+            document.getElementById("skip").style.opacity = 1
         }
 
         function next() {

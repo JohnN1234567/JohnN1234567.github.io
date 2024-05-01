@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jersey+15&display=swap" rel="stylesheet">
+    <title>Document</title>
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+            border: 0;
+            background-color: rgb(22, 174, 201, 0.5);
+        }
+        h1 {
+            color: white;
+            font-size: 15vh;
+            position: absolute;
+            width: 100vw;
+            text-align: center;
+            font-family: "Jersey 15", sans-serif;
+            font-weight: 400;
+            font-style: normal;
+            user-select: none;
+        }
+        p {
+            color: white;
+            font-size: 5vh;
+            width: 55vw;
+            position:absolute;
+            top: 25vh;
+            left: 50vw;
+            transform: translate(-50%, 0);
+            text-align: justify;
+            font-family: "Jersey 15", sans-serif;
+            font-weight: 400;
+            font-style: normal;
+            user-select: none;
+            
+        }
+        .buttonContainer2 {
+                width: 100vw;
+                position:absolute;
+                bottom: 15vh;
+                display: flex;
+                flex-direction: row;
+                justify-content: space-evenly;
+                transform: translate(0, 0%);
+                
+            }
+            button {
+                width: 7vw;
+                height: 8vh;
+                border-radius: 50px;
+                background-color: rgb(22, 174, 201, 0.5);
+                font-size: 4vh;
+                font-family: "Jersey 15", sans-serif;
+                font-weight: 400;
+                font-style: normal;
+                user-select: none;
+                color:white;
+                border-width: 5px;
+                border-color: rgb(0, 216, 255);
+                z-index: 5;
+            }
+    </style>
+</head>
+<body>
+    <h1>HELP</h1>
+    <p>Welcome to Alien Annihilation! The basic gist is to kill aliens and move up levels. Players will have to kill at least 70% of aliens on a single level in order for a level to be considered cleared. Each level will contain a door that will lead you to the next level. Using the doors will move you up levels, regardless of how many enemies you've killed, but there will be consequeneces if a level hasn't been cleared. You cannot move down levels. On the third level, there will be a boss that needs to be defeated. Rooms contain loot that will aid you on your journey. Note that you will need to aim manually with your mouse.</p>
+    <div class="buttonContainer2">
+        <button class="nextButton" onclick="next()">Menu</button>
+    </div>
+    <script>
+        function next() {
+            window.location.href = "index.html"
+        }
+    </script>
+</body>
+</html>

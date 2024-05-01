@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"
+        integrity="sha512-uaz5GpnQoE6t5echKlX8P52czvsIGgLPcvlzfvRubLZ1Hp8JemUDnbUiAahbVtPb+jUVrNETuXvAhDDF/N3M4w=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.js" integrity="sha512-TU9AWtV5uUZPX8dbBAH8NQF1tSdigPRRT82vllAQ1Ke28puiqLA6ZVKxtUGlgrH6yWFnkKy+sE6luNEGH9ar0A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Jersey+15&display=swap" rel="stylesheet">
+        <style>
+            body {
+                background-color: black;
+                padding: 0;
+                margin: 0;
+                overflow: hidden;
+            }
+            #obama {
+                height: 75vh;
+                left: 50vw;
+                transform: translate(-50%, 0);
+                position: absolute;
+            }
+            h1 {
+            width: 100vw;
+            height: 10vh;
+            font-size: 10vh;
+            transform: translate(0, -500%);
+            position: absolute;
+            top: 10vh;
+            left: 0;
+            text-align: center;
+            color: white;
+            font-family: "Jersey 15", sans-serif;
+            font-weight: 400;
+            font-style: normal;
+            user-select: none;
+        }
+
+        p {
+            color: white;
+            position: absolute;
+            font-size: 3vh;
+            left: 50vw;
+            transform: translate(-50%, 0);
+            bottom: 10vh;
+            text-align: center;
+            font-family: "Jersey 15", sans-serif;
+            font-weight: 400;
+            font-style: normal;
+            user-select: none;
+        }
+
+
+            @keyframes slideUp {
+                0% {
+                    transform: translate(0, 500%);  
+                }
+                100% {
+                    transform: translate(0, 0);  
+                }
+            }
+
+            @keyframes slide {
+            0% {
+                transform: translate3d(0, 0, 0)
+            }
+            100% {
+                transform: translate3d(-125vw, 0, 0)
+            }
+
+            
+             }
+
+             
+        @keyframes buttonHover {
+            0% {
+                transform: scale(1)
+            }
+            100% {
+                transform: scale(1.5);
+            }
+        }
+
+        @keyframes buttonUnhover {
+            0% {
+                transform: scale(1.5)
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes titleIn {
+            0% {
+                transform: translate(0, -500%)
+            }
+            100% {
+                transform: translate(0, 0%)
+            }
+        }
+
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+        #container {
+            width: 100vw;
+            color: white;
+            position: absolute;
+        }
+        #subtitles1{
+            top: 5vh;
+            opacity: 0;
+            animation: fadeIn 5s forwards;
+            animation-delay: 1s
+        }
+        #subtitles2{
+            top: 8vh;
+            opacity: 0;
+            animation: fadeIn 5s forwards;
+            animation-delay: 6s
+        }
+        #subtitles3{
+            top: 11vh;
+            opacity: 0;
+            animation: fadeIn 5s forwards;
+            animation-delay: 11s
+        }
+        #medal {
+            width: 5vw;
+            position: absolute;
+            left: 50vw;
+            top: 70vh;
+            opacity: 0;
+            transform: translate(-50%, 0);
+            animation: fadeIn 5s forwards;
+            animation-delay: 16s;
+            user-select: none;
+        }
+        .buttonContainer2 {
+                width: 100vw;
+                position:absolute;
+                bottom: 15vh;
+                display: flex;
+                flex-direction: row;
+                justify-content: space-evenly;
+                transform: translate(0, 500%);
+                
+            }
+            button {
+                width: 7vw;
+                height: 8vh;
+                border-radius: 50px;
+                background-color: rgb(22, 174, 201, 0.5);
+                font-size: 4vh;
+                font-family: "Jersey 15", sans-serif;
+                font-weight: 400;
+                font-style: normal;
+                user-select: none;
+                color:rgb(0, 216, 255);
+                border-width: 5px;
+                border-color: rgb(0, 216, 255);
+                z-index: 5;
+            }
+        
+        </style>
+</head>
+<body>
+    <img src="obama.png" id="obama">
+    
+    <div id="container">
+        <p id="subtitles1">I am quite honestly impressed...</p> 
+        <p id="subtitles2">You make my vice president look competent.</p> 
+        <p id="subtitles3">Did you even try at all?</p> 
+    </div>
+    <div class="buttonContainer2">
+        <button class="nextButton" onclick="next()">Menu</button>
+    </div>
+    
+    
+    <script>
+        let obamaSound 
+        let song
+        let startTime 
+        let songIsPlayed = false
+        let animationSlided = false
+        
+        function preload() {
+            obamaSound = loadSound("obamaSpeech.mp3")
+            song = loadSound("goodEnding.mp3")
+        }
+        function mouseMoved() {
+            getAudioContext().resume();    
+        }
+        let happenOnce = 0
+        function draw() {  
+            userStartAudio()
+            console.log(song.isPlaying())
+            if (song.isPlaying() == false) {
+                song.setVolume(0.5)
+                song.play()
+            } 
+            if (millis() >= 21000 && happenOnce == 0) {
+                happenOnce = 1
+                document.getElementsByClassName("buttonContainer2")[0].style.animation = "slideUp 3s forwards"
+            }
+        }
+
+        function next() {
+            window.location.href = "index.html"
+        }
+        
+    </script>
+</body>
+</html>
